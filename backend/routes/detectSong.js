@@ -18,7 +18,7 @@ router.post('/', async (req, res) => {
             audio: audioData
         });
 
-        res.json(response.data); // Send back the detected song info
+        res.json(response.data);
     } catch (error) {
         console.error("Error detecting song:", error);
         res.status(500).send("Error detecting song");
