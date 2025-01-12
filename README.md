@@ -8,7 +8,8 @@ ACRCloud API, Express
 ### Frontend: 
 React
 
-## Features: Detects song when provided an MP3 file.
+## Features: 
+Detects song when provided an MP3 file.
 
 ## Setup Instructions: 
 Find YOUR_ACCESS, YOUR_SECRET, and YOUR_URL in send_post.py and detectsong.js and replace with your own ACRCloud API tokens.
