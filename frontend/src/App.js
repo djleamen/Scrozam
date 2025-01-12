@@ -3,7 +3,7 @@ import React from 'react';
 function App() {
     return (
         <div>
-            <h1>Welcome to Scrozam!</h1>
+            <h1>Welcome to Scrozam Frontend</h1>
         </div>
     );
 }
