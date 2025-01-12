@@ -2,10 +2,10 @@
 WIP web app that detects audio using ACRCloud and scrobbles the identified songs to a user’s Last.fm account.
 
 ## Technologies:
-### Backend:
+### Backend
 ACRCloud API, Express
 
-### Frontend: 
+### Frontend
 React
 
 ## Features: 
