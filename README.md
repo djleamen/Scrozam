@@ -13,6 +13,7 @@ Detects song when provided an MP3 file.
 
 ## Setup Instructions: 
 Find YOUR_ACCESS, YOUR_SECRET, and YOUR_URL in send_post.py and detectsong.js and replace with your own ACRCloud API tokens.
+Find YOUR_FILE_AUDIO_PATH.mp3 in send_post.py and replace with your audio file path.
 
 Feel free to try it out with test mp3!
 
