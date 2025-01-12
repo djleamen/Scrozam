@@ -5,7 +5,7 @@ WIP web app that detects audio using ACRCloud and scrobbles the identified songs
 ### Backend:
 ACRCloud API, Express
 
-## Frontend: 
+### Frontend: 
 React
 
 Features: Detects song when provided an MP3 file.
