@@ -1,7 +1,7 @@
 # Scrozam
 WIP web app that detects audio using ACRCloud and scrobbles the identified songs to a user’s Last.fm account.
 
-## Technologies
+## Technologies:
 ### Backend:
 ACRCloud API, Express
 
