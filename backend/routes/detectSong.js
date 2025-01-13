@@ -1,9 +1,12 @@
 const axios = require('axios');
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const upload = multer();
 
-router.post('/', async (req, res) => {
-    const audioData = req.body.audio;
+router.post('/', upload.single('sample'), async (req, res) => {
+    // retrieve audio file buffer from request
+    const audioData = req.file.buffer; 
 
     if (!audioData) {
         return res.status(400).send("No audio data provided");
@@ -11,16 +14,16 @@ router.post('/', async (req, res) => {
 
     try {
         const response = await axios.post('YOUR_URL', {
-            access_key: 'YOUR_ACCESS',
-            access_secret: 'YOUR_SECRET',
-            data_type: 'audio',
+            access_key: 'YOUR_KEY',
             sample_bytes: audioData.length,
-            audio: audioData
+            data_type: 'audio',
+            signature_version: '1',
+            audio: audioData.toString('base64') // convert to base64
         });
 
         res.json(response.data);
     } catch (error) {
-        console.error("Error detecting song:", error);
+        console.error("Error detecting song:", error.message);
         res.status(500).send("Error detecting song");
     }
 });

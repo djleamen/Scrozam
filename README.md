@@ -9,15 +9,14 @@ ACRCloud API, Express
 React
 
 ## Features: 
-Detects song when provided an MP3 file.
+Detects song from audio input.
 
 ## Setup Instructions: 
 Find YOUR_ACCESS, YOUR_SECRET, and YOUR_URL in send_post.py and detectsong.js and replace with your own ACRCloud API tokens.
-Find YOUR_FILE_AUDIO_PATH.mp3 in send_post.py and replace with your audio file path.
 
-Feel free to try it out with test mp3!
+Feel free to change stop_after_detect in send_post.py to False if you want continuous listening!
 
 ## Future Improvements: 
-Detect audio from microphone (similar to Shazam functionality) and scrobble detected track to Last.fm.
+Scrobble detected track to Last.fm.
 
 
