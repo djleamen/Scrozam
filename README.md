@@ -2,9 +2,9 @@ Based on the gathered information, here is an enhanced version of your README.md
 
 ---
 
-# Scrozam
+# Scrozam!
 
-Scrozam is a web application that detects songs using the ACRCloud API and scrobbles the identified tracks to a user's Last.fm account.
+*Scrozam!* is a web application that detects songs using the ACRCloud API and scrobbles the identified tracks to a user's Last.fm account.
 
 ## Technologies
 
