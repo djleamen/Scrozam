@@ -39,7 +39,3 @@ Feel free to contribute to the project by opening issues and submitting pull req
 
 ### License
 This project is licensed under the MIT License.
-
----
-
-If you have any specific files or sections you would like to add more details about, please let me know!
