@@ -36,6 +36,3 @@ Based on the gathered information, here is an enhanced version of your README.md
 
 ### Development and Contribution
 Feel free to contribute to the project by opening issues and submitting pull requests. Ensure that you follow the project's coding guidelines and standards.
-
-### License
-This project is licensed under the MIT License.
