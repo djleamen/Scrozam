@@ -28,8 +28,8 @@
 
 ### Project Structure
 - **backend/**: Contains server-side code and dependencies.
-- **frontend/**: Contains React components and frontend logic.
     - **node_modules/**: Contains project dependencies.
+- **frontend/**: Contains React components and frontend logic.
 
 ### Development and Contribution
 Feel free to contribute to the project by opening issues and submitting pull requests. Ensure that you follow the project's coding guidelines and standards.
