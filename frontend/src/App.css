@@ -4,7 +4,7 @@
 }
 
 .App-logo {
-  height: 20vmin;
+  height: 40vmin;
   pointer-events: none;
 }
 
@@ -48,7 +48,7 @@
 }
 
 button {
-  background-color: #ff8d8d;
+  background-color: #ff3131;
   color: #282c34;
   border: none;
   padding: 10px 20px;
