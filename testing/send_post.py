@@ -10,7 +10,7 @@ import io
 
 # ACRCloud credentials
 access_key = "YOUR_KEY"
-access_secret = "YOUR_SECRET"
+access_secret = "YOUR_ACCESS"
 requrl = "YOUR_URL"
 
 http_method = "POST"
@@ -85,7 +85,7 @@ try:
         # stop listening if a song was detected and stop_after_detect is True
         if response.status_code == 200:
             result = response.json()
-            if result['status']['code'] == 0:  # Song detected successfully
+            if result['status']['code'] == 0:  # song detected successfully
                 print("Song detected:", result['metadata']['music'][0]['title'], "by", result['metadata']['music'][0]['artists'][0]['name'])
                 if stop_after_detect:
                     break

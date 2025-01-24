@@ -14,7 +14,7 @@ router.post('/', upload.single('sample'), async (req, res) => {
 
     try {
         const response = await axios.post('YOUR_URL', {
-            access_key: 'YOUR_KEY',
+            access_key: 'YOUR_ACCESS',
             sample_bytes: audioData.length,
             data_type: 'audio',
             signature_version: '1',
