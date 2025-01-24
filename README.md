@@ -10,6 +10,7 @@ Based on the gathered information, here is an enhanced version of your README.md
 
 ### Backend
 - ACRCloud API
+- Last.fm API
 - Express
 
 ### Frontend
