@@ -17,8 +17,8 @@
 
 ## Setup Instructions
 
-1. Replace `YOUR_ACCESS`, `YOUR_SECRET`, and `YOUR_URL` in `send_post.py` and `detectsong.js` with your own ACRCloud API tokens.
-2. Optionally, set `stop_after_detect` in `send_post.py` to `False` for continuous listening.
+1. Add your API tokens to .env files.
+2. Optionally, set `STOP_AFTER_DETECT=False` for continuous listening.
 
 ## Future Improvements
 
