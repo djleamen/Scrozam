@@ -14,6 +14,7 @@
 
 ## Features
 - Detects songs from audio input.
+- Reiterates detected track to user.
 
 ## Setup Instructions
 
@@ -23,6 +24,8 @@
 ## Future Improvements
 
 - Implement scrobbling of detected tracks to Last.fm.
+- Add more detailed song information display.
+- Implement more robust error handling.
 
 ## Additional Information
 
