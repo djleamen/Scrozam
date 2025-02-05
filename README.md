@@ -32,7 +32,10 @@
 ### Project Structure
 - **backend/**: Contains server-side code and dependencies.
     - **node_modules/**: Contains project dependencies.
+    - **routes/**: Contains song detection, scrobbling logic.
 - **frontend/**: Contains React components and frontend logic.
+    - **node_modules/**: Contains project dependencies.
+    - **public/**: 
 
 ### Development and Contribution
 Feel free to contribute to the project by opening issues and submitting pull requests. Ensure that you follow the project's coding guidelines and standards.
