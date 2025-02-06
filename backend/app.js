@@ -52,40 +52,53 @@ app.get('/auth', (req, res) => {
 });
 
 app.get('/callback', async (req, res) => {
-    const token = req.query.token;
+    console.log('Received callback with token:', req.query.token);
 
+    const token = req.query.token;
     if (!token) {
+        console.error('Missing token in callback.');
         return res.status(400).send('Missing token');
     }
 
     const method = 'auth.getSession';
-    const params = `api_key${API_KEY}method${method}token${token}`;
-    const api_sig = crypto.createHash('md5').update(params + SHARED_SECRET).digest('hex');
+    const params = {
+        api_key: API_KEY,
+        method: 'auth.getSession',
+        token: token,
+      };
+      
+      const stringToSign = Object.keys(params)
+    .sort()
+    .map((key) => `${key}${params[key]}`)
+    .join('') + SHARED_SECRET;
+    const api_sig = crypto.createHash('md5').update(stringToSign).digest('hex');
 
-    try {
+      try {
+        console.log('Preparing to make API request to exchange token...');
         const response = await axios.get('https://ws.audioscrobbler.com/2.0/', {
             params: {
                 method: method,
                 api_key: API_KEY,
                 token: token,
                 api_sig: api_sig,
-                format: 'json'
-            }
+                format: 'json',
+            },
         });
-
+    
+        console.log('API response received:', response.data);  // <-- Print full response here
+    
         if (response.data && response.data.session) {
-            SESSION_KEY = response.data.session.key;
-            console.log('Session Key:', SESSION_KEY);
-
-            // save the session key to a file
-            fs.writeFileSync(sessionKeyPath, SESSION_KEY, 'utf8');
-
-            res.send(`Session Key: ${SESSION_KEY}`);
+            const sessionKey = response.data.session.key;
+            console.log('Successfully retrieved session key:', sessionKey);
+    
+            fs.writeFileSync(sessionKeyPath, sessionKey, 'utf8');
+            return res.send(`🎉 Successfully authenticated! Your session key is: ${sessionKey}`);
         } else {
-            res.status(500).send('Failed to retrieve session key');
+            console.error('Failed to retrieve session key:', response.data);
+            return res.status(500).send('Failed to retrieve session key.');
         }
     } catch (error) {
         console.error('Error fetching session key:', error.response?.data || error.message);
-        res.status(500).send('Error fetching session key');
+        return res.status(500).send('Error fetching session key.');
     }
 });
