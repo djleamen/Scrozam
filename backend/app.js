@@ -83,6 +83,8 @@ app.get('/callback', async (req, res) => {
                 api_sig: api_sig,
                 format: 'json',
             },
+            // Force IPv4
+            family: 4,
         });
     
         console.log('API response received:', response.data);  // <-- Print full response here
