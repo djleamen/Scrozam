@@ -7,7 +7,7 @@ const path = require('path');
 require('dotenv').config();
 
 const API_KEY = process.env.LAST_API_KEY;
-const SHARED_SECRET = process.env.LAST_SHARED_SECRET;
+const SHARED_SECRET = process.env.LAST_SHARED_SECRET.trim();
 
 let SESSION_KEY;
 
@@ -23,17 +23,18 @@ try {
 // Function to generate the API signature
 function generateSignature(params) {
     const keys = Object.keys(params).sort();  // Sort keys alphabetically
-    let stringToSign = '';
 
+    let stringToSign = '';
     keys.forEach((key) => {
-      // Remove array notation like [0], [1] when adding to signature
-      const cleanKey = key.replace(/\[\d+\]$/, '');
-      stringToSign += cleanKey + params[key];  // Concatenate cleaned key-value pairs
+        stringToSign += key + params[key].trim();  // Append key-value pairs with no extra spaces
     });
 
-    stringToSign += SHARED_SECRET;  // Append the shared secret
-    console.log('Corrected string to sign:', stringToSign);
-    return crypto.createHash('md5').update(stringToSign, 'utf8').digest('hex');
+    // Append and trim SHARED_SECRET to remove any hidden characters
+    stringToSign = stringToSign.trim() + SHARED_SECRET.trim();
+
+    console.log('Final corrected string to sign (no artifacts):', stringToSign);
+
+    return crypto.createHash('md5').update(Buffer.from(stringToSign, 'utf8')).digest('hex');
 }
 
 router.post('/', async (req, res) => {
@@ -43,37 +44,33 @@ router.post('/', async (req, res) => {
         return res.status(400).send('Artist and title are required');
     }
 
-    const timestamp = Math.floor(Date.now() / 1000);  // Current Unix timestamp
+    const timestamp = Math.floor(Date.now() / 1000);
 
-    // Prepare scrobble parameters using array notation
+    // Scrobble parameters (WITH array notation)
     const params = {
-        method: 'track.scrobble',
-        api_key: API_KEY,
-        sk: SESSION_KEY,
+        'method': 'track.scrobble',
+        'api_key': API_KEY,
+        'sk': SESSION_KEY,
         'artist[0]': artist,
         'track[0]': title,
         'timestamp[0]': timestamp.toString(),
         'album[0]': album,
         'chosenByUser[0]': chosenByUser,
-        format: 'json'
+        'format': 'json',
     };
 
-    // Generate API signature
-    params.api_sig = generateSignature(params);
+    // Generate API signature (clean array notations during signing)
+    params['api_sig'] = generateSignature(params);
 
     try {
-        const response = await axios.post(
-            'https://ws.audioscrobbler.com/2.0/',
-            new URLSearchParams(params).toString(),
-            {
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              timeout: 10000,  // Set a 10-second timeout
-              family: 4,  // Force IPv4
-            }
-          );
+        const response = await axios.post('https://ws.audioscrobbler.com/2.0/', new URLSearchParams(params).toString(), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            timeout: 10000,  // Set 10-second timeout
+            family: 4,  // Force IPv4 in case of IPv6 issues
+          });
 
         if (response.data && response.data.scrobbles) {
-            console.log('Scrobble Response:', response.data);
+            console.log('Scrobble successful:', response.data);
             res.json({ message: 'Song scrobbled successfully!', scrobbles: response.data.scrobbles });
         } else {
             console.error('Failed to scrobble song:', response.data);
