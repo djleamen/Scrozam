@@ -22,14 +22,17 @@ try {
 
 // Function to generate the API signature
 function generateSignature(params) {
-    const keys = Object.keys(params).sort();  // Sort keys alphabetically (required for signature)
+    const keys = Object.keys(params).sort();  // Sort keys alphabetically
     let stringToSign = '';
 
     keys.forEach((key) => {
-        stringToSign += key + params[key];
+      // Remove array notation like [0], [1] when adding to signature
+      const cleanKey = key.replace(/\[\d+\]$/, '');
+      stringToSign += cleanKey + params[key];  // Concatenate cleaned key-value pairs
     });
 
-    stringToSign += SHARED_SECRET;
+    stringToSign += SHARED_SECRET;  // Append the shared secret
+    console.log('Corrected string to sign:', stringToSign);
     return crypto.createHash('md5').update(stringToSign, 'utf8').digest('hex');
 }
 
@@ -59,9 +62,15 @@ router.post('/', async (req, res) => {
     params.api_sig = generateSignature(params);
 
     try {
-        const response = await axios.post('https://ws.audioscrobbler.com/2.0/', new URLSearchParams(params).toString(), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
+        const response = await axios.post(
+            'https://ws.audioscrobbler.com/2.0/',
+            new URLSearchParams(params).toString(),
+            {
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              timeout: 10000,  // Set a 10-second timeout
+              family: 4,  // Force IPv4
+            }
+          );
 
         if (response.data && response.data.scrobbles) {
             console.log('Scrobble Response:', response.data);

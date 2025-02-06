@@ -46,8 +46,29 @@ router.post('/', upload.single('sample'), async (req, res) => {
     console.log('ACRCloud Response:', response.data);
 
     if (response.data.status.code === 0) {
-      const { title, artists } = response.data.metadata.music[0];
-      res.json({ title, artist: artists[0].name });
+      const musicData = response.data.metadata.music[0];
+      console.log('Full music data from ACRCloud:', musicData);
+    
+      // Extract title and artist correctly
+      const title = musicData.title;
+      const artist = musicData.artists[0].name;
+    
+      // Log what’s being sent back to the frontend
+      console.log(`Detected Song -> Title: ${title}, Artist: ${artist}`);
+    
+      try {
+        // Store the detected song on the backend
+        await axios.post('http://localhost:3000/detected-song', {
+          title,
+          artist,
+        });
+      
+        console.log(`Posted detected song to backend: ${title} by ${artist}`);
+        res.json({ title, artist });  // Return the detected song to the client
+      } catch (postError) {
+        console.error('Failed to store detected song on backend:', postError);
+        res.status(500).send('Failed to store detected song');
+      }
     } else {
       console.error('Song detection failed:', response.data.status.msg);
       res.status(500).send('Song detection failed');

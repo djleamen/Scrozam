@@ -9,21 +9,21 @@ function App() {
 
   useEffect(() => {
     let isMounted = true; // Prevent state updates after unmounting
-  
+    
     const fetchTrack = async () => {
       try {
         const response = await fetch('http://localhost:3000/detected-song');
         const data = await response.json();
+        console.log('Received track data in frontend:', data);
+    
         if (data && isMounted) {
-          setTrackInfo(data);
-          handleNewTrack(data.artist, data.title); // Check for scrobbling on detection
+          if (!trackInfo || `${trackInfo.artist}-${trackInfo.title}` !== `${data.artist}-${data.title}`) {
+            setTrackInfo(data);  // Update the track
+            handleNewTrack(data.artist, data.title);  // Trigger scrobble logic
+          }
         }
       } catch (error) {
         console.error('Error fetching detected song:', error);
-      }
-  
-      if (isMounted) {
-        setTimeout(fetchTrack, 5000); // Recursive call for polling
       }
     };
   
@@ -32,7 +32,7 @@ function App() {
     return () => {
       isMounted = false; // Cleanup on unmount
     };
-  }, []);
+  }, [trackInfo]);  // Watch for changes in trackInfo
 
   const handleStartListening = async () => {
     setIsListening(true);
@@ -81,14 +81,18 @@ function App() {
   };
 
   const handleNewTrack = async (artist, title) => {
-    if (lastScrobbledTrack.current !== `${artist}-${title}`) {
+    console.log(`handleNewTrack triggered with: ${artist} - ${title}`);
+    
+    if (`${artist}-${title}` !== lastScrobbledTrack.current) {
       lastScrobbledTrack.current = `${artist}-${title}`;
+      
       try {
         const response = await fetch('http://localhost:3000/scrobble-song', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ artist, title })
+          body: JSON.stringify({ artist, title }),
         });
+  
         if (response.ok) {
           console.log(`Successfully scrobbled: ${title} by ${artist}`);
         } else {
