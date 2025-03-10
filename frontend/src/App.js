@@ -8,77 +8,104 @@ function App() {
   const lastScrobbledTrack = useRef('');
 
   useEffect(() => {
-    let isMounted = true; // Prevent state updates after unmounting
-    
-    const fetchTrack = async () => {
-      try {
-        const response = await fetch('http://localhost:3000/detected-song');
-        const data = await response.json();
-        console.log('Received track data in frontend:', data);
-    
-        if (data && isMounted) {
-          if (!trackInfo || `${trackInfo.artist}-${trackInfo.title}` !== `${data.artist}-${data.title}`) {
-            setTrackInfo(data);  // Update the track
-            handleNewTrack(data.artist, data.title);  // Trigger scrobble logic
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching detected song:', error);
-      }
-    };
-  
-    fetchTrack(); // Start initial fetch
-  
-    return () => {
-      isMounted = false; // Cleanup on unmount
-    };
-  }, [trackInfo]);  // Watch for changes in trackInfo
+    let isMounted = true;
 
-  const handleStartListening = async () => {
+    const fetchTrack = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/detected-song');
+            const data = await response.json();
+            console.log('Received track data in frontend:', data);
+
+            // Ensure the data has valid song info
+            if (data?.title && data?.artist) {
+                // **FORCE UPDATE even if the same song is detected again**
+                setTrackInfo(prevTrack => {
+                    if (!prevTrack || prevTrack.title !== data.title || prevTrack.artist !== data.artist) {
+                        console.log(`🎵 Updating UI with new track: ${data.title} - ${data.artist}`);
+                        return data;  // Update with the new detected song
+                    }
+                    return prevTrack;  // Keep previous track if it's the same
+                });
+
+                handleNewTrack(data.artist, data.title);  // Scrobble the song
+            }
+        } catch (error) {
+            console.error('Error fetching detected song:', error);
+        }
+    };
+
+    // Poll for a new song every 3 seconds
+    const interval = setInterval(fetchTrack, 3000);
+
+    return () => {
+        isMounted = false;
+        clearInterval(interval);
+    };
+}, []);
+
+const [continuousListening, setContinuousListening] = useState(false);  // New state toggle
+
+const handleStartListening = async () => {
     setIsListening(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      const audioChunks = [];
-  
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunks.push(event.data);
-      };
-  
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        console.log('Audio Blob Size:', audioBlob.size);
-      
-        const formData = new FormData();
-        formData.append('sample', audioBlob, 'audio.wav');
-        
-        try {
-          const response = await fetch('http://localhost:3000/detect-song', {
-            method: 'POST',
-            body: formData,
-          });
-          
-          if (!response.ok) {
-            throw new Error('Song detection failed');
-          }
-      
-          const songData = await response.json();
-          setTrackInfo(songData);
-        } catch (error) {
-          console.error('Error detecting song:', error);
-        }
-      };
-  
-      mediaRecorder.start();
-      setTimeout(() => {
-        mediaRecorder.stop();
-        setIsListening(false);
-      }, 10000); // Record for 10 seconds
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        const startRecording = () => {
+            const mediaRecorder = new MediaRecorder(stream);
+            const audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                console.log('Audio Blob Size:', audioBlob.size);
+
+                const formData = new FormData();
+                formData.append('sample', audioBlob, 'audio.wav');
+
+                try {
+                    const response = await fetch('http://localhost:3000/detect-song', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Song detection failed');
+                    }
+
+                    const songData = await response.json();
+                    setTrackInfo(songData);
+
+                    console.log(`🎧 Detected: ${songData.title} - ${songData.artist}`);
+
+                    // **If continuous mode is enabled, start a new recording**
+                    if (continuousListening) {
+                        setTimeout(startRecording, 500);  // Small delay before re-recording
+                    } else {
+                        setIsListening(false);
+                        stream.getTracks().forEach(track => track.stop());  // Stop microphone
+                    }
+
+                } catch (error) {
+                    console.error('Error detecting song:', error);
+                }
+            };
+
+            mediaRecorder.start();
+            setTimeout(() => {
+                mediaRecorder.stop();
+            }, 10000);  // **Records for 10s, then stops**
+        };
+
+        startRecording();  // Start the first recording
+
     } catch (error) {
-      console.error('Error accessing microphone:', error);
-      setIsListening(false);
+        console.error('Error accessing microphone:', error);
+        setIsListening(false);
     }
-  };
+};
 
   const handleNewTrack = async (artist, title) => {
     console.log(`handleNewTrack triggered with: ${artist} - ${title}`);
@@ -107,6 +134,11 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
+        <div className="toggle-container">
+          <label>
+            <input type="checkbox" checked={continuousListening} onChange={() => setContinuousListening(!continuousListening)}/>Continuous Listening Mode
+          </label>
+        </div>
         <img src={logo} className="App-logo" alt="logo" />
         <h1>Welcome to Scrozam!</h1>
         <p>Listen to music and scrobble tracks to Last.fm</p>
