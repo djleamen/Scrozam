@@ -91,4 +91,4 @@
 
 Feel free to contribute to the project by opening issues and submitting pull requests. Ensure that you follow the project's coding guidelines and standards.
 
-Make sure to replace the placeholder values in the [.env](http://_vscodecontentref_/0) file with your actual API keys and secrets.
+Make sure to replace the placeholder values in the .env file with your actual API keys and secrets.
