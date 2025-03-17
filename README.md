@@ -89,6 +89,8 @@
 
 ### Development and Contribution
 
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/djleamen/Scrozam)
+
 Feel free to contribute to the project by opening issues and submitting pull requests. Ensure that you follow the project's coding guidelines and standards.
 
 Make sure to replace the placeholder values in the .env file with your actual API keys and secrets.
