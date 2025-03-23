@@ -21,6 +21,7 @@
 
 ### Prerequisites
 - Node.js and npm installed on your machine.
+- ACRCloud and Last.fm accounts
 
 ### Steps
 
