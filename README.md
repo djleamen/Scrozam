@@ -2,16 +2,6 @@
 
 *Scrozam!* is a web application that detects songs using the ACRCloud API and scrobbles the identified tracks to a user's Last.fm account.
 
-## Technologies
-
-### Backend
-- ACRCloud API
-- Last.fm API
-- Express
-
-### Frontend
-- React
-
 ## Features
 - Detects songs from audio input.
 - Scrobbles detected tracks to Last.fm.
@@ -64,16 +54,56 @@
 6. **Detect Songs**
     - Open your browser and go to http://localhost:3000.
     - Click the "Start Listening" button and play some music.
-    - The application will detect the song and display the track information.
+       - The application will detect the song and display the track information.
+   - Alternatively, select the "Continuous listening" toggle and play music endlessly
+      - Scrozam will automatically detect changes to the current song.
+      - No song duplication, no missing tracks, just smooth listening!
+
+Sample response in backend:
+```
+ACRCloud Response: {
+...
+}
+Full music data from ACRCloud: {
+...
+}
+Detected Song -> Title: Killah, Artist: Lady Gaga
+Stored detected song: { title: 'Killah', artist: 'Lady Gaga' }
+Posted detected song to backend: Killah by Lady Gaga
+🎧 Sending detected song to frontend: Killah - Lady Gaga
+```
+
+To avoid duplication, if the same song is detected, you will see:
+```📭 No new song detected, returning null.```
+
+*Note*: In continuous listening mode, please allow for some time to pass before the detected song self-updates.
+
+<details>
+<summary>It is normal to see the following when a song first switches:</summary>
+<br>
+
+```
+ACRCloud Response: { status: { code: 1001, version: '1.0', msg: 'No result' } }
+No result detected. Retrying...
+📭 No new song detected, returning null.
+📭 No new song detected, returning null.
+📭 No new song detected, returning null.
+📭 No new song detected, returning null.
+```
+
+The song **WILL** update eventually, usually before the midpoint of the current song. If for whatever reason it gets caught in a `No result` loop, please contact me.
+
+</details>
 
 ---
 
 ## Future Improvements
 
+- Login button for smoother login without manually visiting /auth.
 - Add more detailed song information display.
     - Show album art on page for better user experience.
 - Implement more robust error handling.
-- Information tab
+- Information tab.
 
 ---
 
