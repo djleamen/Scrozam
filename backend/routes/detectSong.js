@@ -69,6 +69,9 @@ router.post('/', upload.single('sample'), async (req, res) => {
         console.error('Failed to store detected song on backend:', postError);
         res.status(500).send('Failed to store detected song');
       }
+    } else if (response.data.status.code === 1001) {
+      console.warn('No result detected. Retrying...');
+      res.status(204).send('No result detected. Please try again.');
     } else {
       console.error('Song detection failed:', response.data.status.msg);
       res.status(500).send('Song detection failed');

@@ -71,6 +71,17 @@ const handleStartListening = async () => {
                         body: formData,
                     });
 
+                    if (response.status === 204) {
+                        console.warn('No result detected. Retrying...');
+                        if (continuousListening) {
+                            setTimeout(startRecording, 500);  // Retry after a short delay
+                        } else {
+                            setIsListening(false);
+                            stream.getTracks().forEach(track => track.stop());
+                        }
+                        return;
+                    }
+
                     if (!response.ok) {
                         throw new Error('Song detection failed');
                     }
@@ -80,12 +91,11 @@ const handleStartListening = async () => {
 
                     console.log(`🎧 Detected: ${songData.title} - ${songData.artist}`);
 
-                    // **If continuous mode is enabled, start a new recording**
                     if (continuousListening) {
                         setTimeout(startRecording, 500);  // Small delay before re-recording
                     } else {
                         setIsListening(false);
-                        stream.getTracks().forEach(track => track.stop());  // Stop microphone
+                        stream.getTracks().forEach(track => track.stop());
                     }
 
                 } catch (error) {
@@ -96,7 +106,7 @@ const handleStartListening = async () => {
             mediaRecorder.start();
             setTimeout(() => {
                 mediaRecorder.stop();
-            }, 10000);  // **Records for 10s, then stops**
+            }, 10000);  // Records for 10s, then stops
         };
 
         startRecording();  // Start the first recording
