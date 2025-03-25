@@ -1,3 +1,9 @@
+/*
+    This file contains the route for scrobbling a song to Last.fm.
+    It generates an API signature and sends a POST request to the Last.fm API.
+    It returns the response from the Last.fm API to the client.
+*/
+
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
@@ -72,7 +78,7 @@ router.post('/', async (req, res) => {
     // Generate API signature (without format=json)
     params['api_sig'] = generateSignature(params);
 
-    // ✅ Add 'format=json' ONLY to the request, NOT in the signature
+    // Add 'format=json' ONLY to the request, NOT in the signature
     params['format'] = 'json';
 
     console.log('Corrected Request parameters:', params);

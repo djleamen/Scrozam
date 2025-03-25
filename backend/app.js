@@ -1,3 +1,9 @@
+/*
+    This file is the entry point for the backend server.
+    It initializes the server, sets up the routes, and listens for incoming requests.
+    It also handles the Last.fm authentication flow and stores the session key.
+*/
+
 const express = require('express');
 const axios = require('axios');
 const bodyParser = require('body-parser');

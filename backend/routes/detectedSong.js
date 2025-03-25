@@ -1,3 +1,9 @@
+/*
+    This file contains the route for storing and retrieving the last detected song.
+    The detected song is stored in a variable and can be accessed by the frontend.
+    The song is reset after being sent to the frontend.
+*/
+
 const express = require('express');
 const router = express.Router();
 

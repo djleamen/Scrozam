@@ -1,3 +1,10 @@
+/*
+  This route is responsible for detecting the song from the audio sample provided by the client.
+  It calculates the audio sample size, generates an HMAC-SHA1 signature, and sends the audio sample to the ACRCloud API.
+  If a song is detected, it stores the song on the backend and sends the song data back to the client.
+  If no song is detected, it returns a 204 status code to the client.
+*/
+
 const axios = require('axios');
 const express = require('express');
 const router = express.Router();
@@ -39,6 +46,7 @@ router.post('/', upload.single('sample'), async (req, res) => {
     contentType: 'audio/wav',
   });
 
+  // 4. Send the audio sample to ACRCloud API
   try {
     const headers = formData.getHeaders();
     const response = await axios.post(ACRCloud_API_URL, formData, { headers });

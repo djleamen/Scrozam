@@ -1,3 +1,9 @@
+/*
+  This is the main component of the frontend application. It displays the UI and handles the logic for starting and stopping the audio recording, as well as fetching and displaying the detected song information.
+  The component uses the MediaRecorder API to record audio from the user's microphone and sends the audio sample to the backend for song detection.
+  When a song is detected, it updates the UI with the detected song information and scrobbles the song to Last.fm.
+*/
+
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import logo from './logo.png';
