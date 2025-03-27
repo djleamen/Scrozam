@@ -10,6 +10,7 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 console.log('ACR Access Key:', process.env.ACR_ACCESS_KEY);
 
@@ -26,6 +27,11 @@ const detectedSongRoute = require('./routes/detectedSong');
 
 const API_KEY = process.env.LAST_API_KEY;
 const SHARED_SECRET = process.env.LAST_SHARED_SECRET;
+// Set up rate limiter: maximum of 100 requests per 15 minutes
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // max 100 requests per windowMs
+});
 
 app.use(express.json());
 
@@ -57,7 +63,7 @@ app.get('/auth', (req, res) => {
     res.redirect(authUrl);
 });
 
-app.get('/callback', async (req, res) => {
+app.get('/callback', limiter, async (req, res) => {
     console.log('Received callback with token:', req.query.token);
 
     const token = req.query.token;
