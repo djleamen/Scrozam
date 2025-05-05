@@ -50,9 +50,10 @@
     ```bash
     npm start
     ```
+    - Type "y" to allow the frontend to start on 3001. 
 
 6. **Detect Songs**
-    - Open your browser and go to http://localhost:3000.
+    - Open your browser and go to http://localhost:3001.
     - Click the "Start Listening" button and play some music.
        - The application will detect the song and display the track information.
    - Alternatively, select the "Continuous listening" toggle and play music endlessly
