@@ -81,7 +81,17 @@ router.post('/', async (req, res) => {
     // Add 'format=json' ONLY to the request, NOT in the signature
     params['format'] = 'json';
 
-    console.log('Corrected Request parameters:', params);
+    // Log only non-sensitive parameters for debugging
+    const safeParams = {
+        method: params.method,
+        artist: params.artist,
+        track: params.track,
+        album: album,
+        timestamp: params.timestamp,
+        chosenByUser: params.chosenByUser,
+        format: params.format
+    };
+    console.log('Corrected Request parameters (safe):', safeParams);
 
     try {
         const response = await axios.post('https://ws.audioscrobbler.com/2.0/', 
