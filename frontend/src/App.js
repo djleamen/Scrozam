@@ -4,7 +4,7 @@
   When a song is detected, it updates the UI with the detected song information and scrobbles the song to Last.fm.
 */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import logo from './logo.png';
 
@@ -12,6 +12,9 @@ function App() {
   const [trackInfo, setTrackInfo] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const [continuousListening, setContinuousListening] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('idle');
+  const [albumArt, setAlbumArt] = useState(null);
+  const [albumArtLoading, setAlbumArtLoading] = useState(false);
 
   // Refs to store the stream and recorder so we can stop them
   const mediaRecorderRef = useRef(null);
@@ -19,22 +22,63 @@ function App() {
 
   const lastScrobbledTrack = useRef('');
 
-  useEffect(() => {
-    let isMounted = true;
+  // Function to fetch album art from backend
+  const fetchAlbumArt = useCallback(async (artist, title) => {
+    console.log(`🎨 Fetching album art for: ${artist} - ${title}`);
+    setAlbumArtLoading(true);
+    
+    try {
+      const response = await fetch('http://localhost:3000/album-art', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ artist, title }),
+      });
 
+      console.log('Album art response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Album art response data:', data);
+        if (data.albumArt) {
+          console.log('✅ Setting album art:', data.albumArt);
+          setAlbumArt(data.albumArt);
+        } else {
+          console.log('❌ No album art in response');
+        }
+      } else {
+        console.error('Failed to fetch album art:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching album art:', error);
+    }
+    
+    setAlbumArtLoading(false);
+  }, []);
+
+  useEffect(() => {
     const fetchTrack = async () => {
       try {
+        setConnectionStatus('connecting');
         const response = await fetch('http://localhost:3000/detected-song');
         const data = await response.json();
         console.log('Received track data in frontend:', data);
+        setConnectionStatus('connected');
 
         // Ensure the data has valid song info
         if (data?.title && data?.artist) {
+          console.log(`🎵 Polling detected track: ${data.title} - ${data.artist}`);
           setTrackInfo(prevTrack => {
+            console.log(`🔍 Comparing tracks - Previous: ${prevTrack?.title} - ${prevTrack?.artist}, New: ${data.title} - ${data.artist}`);
             if (!prevTrack || prevTrack.title !== data.title || prevTrack.artist !== data.artist) {
               console.log(`🎵 Updating UI with new track: ${data.title} - ${data.artist}`);
+              // Fetch album art for the new track
+              console.log(`🎨 About to fetch album art for: ${data.artist} - ${data.title}`);
+              fetchAlbumArt(data.artist, data.title);
               return data;  // Update with the new detected song
             }
+            console.log(`⏭️ Track unchanged, skipping album art fetch`);
             return prevTrack;
           });
 
@@ -42,6 +86,7 @@ function App() {
         }
       } catch (error) {
         console.error('Error fetching detected song:', error);
+        setConnectionStatus('error');
       }
     };
 
@@ -49,10 +94,9 @@ function App() {
     const interval = setInterval(fetchTrack, 3000);
 
     return () => {
-      isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [fetchAlbumArt]);
 
   const handleStartListening = async () => {
     setIsListening(true);
@@ -101,6 +145,10 @@ function App() {
             const songData = await response.json();
             setTrackInfo(songData);
             console.log(`🎧 Detected: ${songData.title} - ${songData.artist}`);
+            
+            // Fetch album art for the detected song
+            console.log(`🎨 About to fetch album art via direct detection: ${songData.artist} - ${songData.title}`);
+            fetchAlbumArt(songData.artist, songData.title);
 
             if (continuousListening) {
               setTimeout(startRecording, 500);
@@ -166,7 +214,7 @@ function App() {
 
   return (
     <div className="App">
-      <header className="App-header">
+      <header className={`App-header ${trackInfo ? 'has-track' : ''}`}>
         <div className="toggle-container">
           <label>
             <input
@@ -178,26 +226,63 @@ function App() {
           </label>
         </div>
   
-        <img src={logo} className="App-logo" alt="logo" />
-        <h1>Welcome to Scrozam!</h1>
-        <p>Listen to music and scrobble tracks to Last.fm</p>
-  
-        <div>
-          <button onClick={handleStartListening} disabled={isListening}>
-            {isListening ? 'Listening...' : 'Start Listening'}
-          </button>
-          {continuousListening && isListening && (
-            <button onClick={handleStopListening} style={{ marginLeft: '10px' }}>
-              Stop Listening
-            </button>
-          )}
+        <div className="left-section">
+          <img 
+            src={logo} 
+            className={`App-logo ${isListening ? 'listening' : ''}`} 
+            alt="Scrozam Logo" 
+          />
+          <h1 className="main-title">Welcome to Scrozam!</h1>
+          <p className="subtitle">Listen to music and scrobble tracks to Last.fm</p>
+    
+          <div className="controls-section">
+            <div className="status-indicator">
+              <div className={`status-dot ${isListening ? 'listening' : 'idle'}`}></div>
+              <span>{isListening ? 'Listening for music...' : 'Ready to listen'}</span>
+            </div>
+            
+            <div className="button-group">
+              <button onClick={handleStartListening} disabled={isListening}>
+                {isListening ? '🎧 Listening...' : '🎵 Start Listening'}
+              </button>
+              {continuousListening && isListening && (
+                <button onClick={handleStopListening} className="stop-button">
+                  ⏹️ Stop Listening
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-  
+
         {trackInfo && (
-          <div className="track-info">
-            <h2>Detected Track</h2>
-            <p><strong>Title:</strong> {trackInfo.title}</p>
-            <p><strong>Artist:</strong> {trackInfo.artist}</p>
+          <div className={`right-section ${trackInfo ? 'visible' : ''}`}>
+            <div className="album-art-container">
+              {albumArtLoading && (
+                <div className="album-art-placeholder">
+                  Loading album art...
+                </div>
+              )}
+              {!albumArtLoading && albumArt && (
+                <img src={albumArt} alt="Album Art" className="album-art" />
+              )}
+              {!albumArtLoading && !albumArt && (
+                <div className="album-art-placeholder">
+                  No album art available
+                </div>
+              )}
+            </div>
+            
+            <div className="track-info side-layout">
+              <h2>Detected Track</h2>
+              <div className="track-detail">
+                <strong>Title</strong>
+                <span>{trackInfo.title}</span>
+              </div>
+              <div className="track-detail">
+                <strong>Artist</strong>
+                <span>{trackInfo.artist}</span>
+              </div>
+            </div>
           </div>
         )}
       </header>

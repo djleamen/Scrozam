@@ -24,6 +24,7 @@ app.use(cors());
 const detectSongRoute = require('./routes/detectSong');
 const scrobbleSongRoute = require('./routes/scrobbleSong');
 const detectedSongRoute = require('./routes/detectedSong');
+const albumArtRoute = require('./routes/albumArt');
 
 const API_KEY = process.env.LAST_API_KEY;
 const SHARED_SECRET = process.env.LAST_SHARED_SECRET;
@@ -38,6 +39,7 @@ app.use(express.json());
 app.use('/detect-song', detectSongRoute);
 app.use('/scrobble-song', scrobbleSongRoute);
 app.use('/detected-song', detectedSongRoute);
+app.use('/album-art', albumArtRoute);
 
 app.listen(PORT, () => {
     console.log(`Backend server running on port ${PORT}`);
