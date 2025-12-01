@@ -10,6 +10,8 @@
 
 *Scrozam!* is a web application that detects songs using the ACRCloud API and scrobbles the identified tracks to a user's Last.fm account.
 
+<img width="1512" height="817" alt="Screenshot 2025-12-01 at 11 01 02 AM" src="https://github.com/user-attachments/assets/5db90f71-266b-411a-960a-0d9860e1ae4d" />
+
 ## Features
 - Detects songs from audio input.
 - Scrobbles detected tracks to Last.fm.
