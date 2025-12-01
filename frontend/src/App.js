@@ -12,7 +12,6 @@ function App() {
   const [trackInfo, setTrackInfo] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const [continuousListening, setContinuousListening] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('idle');
   const [albumArt, setAlbumArt] = useState(null);
   const [albumArtLoading, setAlbumArtLoading] = useState(false);
 
@@ -21,9 +20,18 @@ function App() {
   const streamRef = useRef(null);
 
   const lastScrobbledTrack = useRef('');
+  const lastAlbumArtTrack = useRef('');
 
   // Function to fetch album art from backend
   const fetchAlbumArt = useCallback(async (artist, title) => {
+    const trackKey = `${artist}-${title}`;
+    
+    // Only fetch if this is a different track than the last one we fetched album art for
+    if (trackKey === lastAlbumArtTrack.current) {
+      console.log(`🎨 Album art already cached for: ${artist} - ${title}`);
+      return;
+    }
+    
     console.log(`🎨 Fetching album art for: ${artist} - ${title}`);
     setAlbumArtLoading(true);
     
@@ -44,6 +52,7 @@ function App() {
         if (data.albumArt) {
           console.log('✅ Setting album art:', data.albumArt);
           setAlbumArt(data.albumArt);
+          lastAlbumArtTrack.current = trackKey; // Cache this track
         } else {
           console.log('❌ No album art in response');
         }
@@ -60,11 +69,9 @@ function App() {
   useEffect(() => {
     const fetchTrack = async () => {
       try {
-        setConnectionStatus('connecting');
         const response = await fetch('http://localhost:3000/detected-song');
         const data = await response.json();
         console.log('Received track data in frontend:', data);
-        setConnectionStatus('connected');
 
         // Ensure the data has valid song info
         if (data?.title && data?.artist) {
@@ -86,7 +93,6 @@ function App() {
         }
       } catch (error) {
         console.error('Error fetching detected song:', error);
-        setConnectionStatus('error');
       }
     };
 
@@ -97,6 +103,13 @@ function App() {
       clearInterval(interval);
     };
   }, [fetchAlbumArt]);
+
+  const stopStream = useCallback(() => {
+    setIsListening(false);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+  }, []);
 
   const handleStartListening = async () => {
     setIsListening(true);
@@ -132,8 +145,7 @@ function App() {
               if (continuousListening) {
                 setTimeout(startRecording, 500);
               } else {
-                setIsListening(false);
-                streamRef.current.getTracks().forEach(track => track.stop());
+                stopStream();
               }
               return;
             }
@@ -153,8 +165,7 @@ function App() {
             if (continuousListening) {
               setTimeout(startRecording, 500);
             } else {
-              setIsListening(false);
-              streamRef.current.getTracks().forEach(track => track.stop());
+              stopStream();
             }
 
           } catch (error) {
@@ -220,7 +231,7 @@ function App() {
             <input
               type="checkbox"
               checked={continuousListening}
-              onChange={() => setContinuousListening(!continuousListening)}
+              onChange={(e) => setContinuousListening(e.target.checked)}
             />
             Continuous Listening Mode
           </label>

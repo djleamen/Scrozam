@@ -7,9 +7,9 @@
 const express = require('express');
 const axios = require('axios');
 const bodyParser = require('body-parser');
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 console.log('ACR Access Key:', process.env.ACR_ACCESS_KEY);
@@ -53,7 +53,7 @@ try {
     SESSION_KEY = fs.readFileSync(sessionKeyPath, 'utf8').trim();
     console.log('Loaded session key:', SESSION_KEY);
 } catch (error) {
-    console.warn('No session key found. Please authenticate via /auth.');
+    console.warn('No session key found. Please authenticate via /auth.', error.message);
 }
 
 app.get('/', (req, res) => {
@@ -82,7 +82,7 @@ app.get('/callback', limiter, async (req, res) => {
       };
       
       const stringToSign = Object.keys(params)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .map((key) => `${key}${params[key]}`)
     .join('') + SHARED_SECRET;
     const api_sig = crypto.createHash('md5').update(stringToSign).digest('hex');
@@ -103,7 +103,7 @@ app.get('/callback', limiter, async (req, res) => {
     
         console.log('API response received:', response.data);  // <-- Print full response here
     
-        if (response.data && response.data.session) {
+        if (response.data?.session) {
             const sessionKey = response.data.session.key;
             console.log('Successfully retrieved session key:', sessionKey);
     

@@ -10,9 +10,9 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const FormData = require('form-data');
-const crypto = require('crypto');  // For HMAC signature generation
+const crypto = require('node:crypto');  // For HMAC signature generation
 require('dotenv').config();
-const fs = require('fs');
+const fs = require('node:fs');
 
 const ACRCloud_API_URL = process.env.ACR_URL;
 const ACCESS_KEY = process.env.ACR_ACCESS_KEY;
@@ -21,7 +21,7 @@ const ACCESS_SECRET = process.env.ACR_SHARED;
 const upload = multer();
 
 router.post('/', upload.single('sample'), async (req, res) => {
-  if (!req.file || !req.file.buffer) {
+  if (!req.file?.buffer) {
     return res.status(400).send('No audio data provided');
   }
 

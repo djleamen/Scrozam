@@ -33,7 +33,7 @@ const fetchAlbumInfo = async (artist, albumName) => {
       }
     });
 
-    if (response.data.album && response.data.album.image) {
+    if (response.data.album?.image) {
       return extractLargestImage(response.data.album.image);
     }
   } catch (error) {
@@ -54,7 +54,7 @@ const fetchArtistInfo = async (artist) => {
       }
     });
 
-    if (response.data.artist && response.data.artist.image) {
+    if (response.data.artist?.image) {
       return extractLargestImage(response.data.artist.image);
     }
   } catch (error) {
@@ -88,7 +88,7 @@ router.post('/', async (req, res) => {
 
     let imageUrl = null;
 
-    if (trackResponse.data.track && trackResponse.data.track.album) {
+    if (trackResponse.data.track?.album) {
       const albumName = trackResponse.data.track.album.title;
       
       if (albumName) {

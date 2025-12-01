@@ -7,9 +7,9 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 require('dotenv').config();
 
 const API_KEY = process.env.LAST_API_KEY;
@@ -23,8 +23,7 @@ function loadSessionKey() {
         SESSION_KEY = fs.readFileSync(path.join(__dirname, '../session_key.txt'), 'utf8').trim();
         console.log('Loaded session key:', SESSION_KEY);
     } catch (error) {
-        console.error('No session key found. Please authenticate via /auth.');
-        // process.exit(1);
+        console.error('No session key found. Please authenticate via /auth.', error.message);
     }
 }
 
@@ -37,7 +36,7 @@ function generateSignature(params) {
     const paramsForSignature = { ...params };
     delete paramsForSignature['format']; 
 
-    const keys = Object.keys(paramsForSignature).sort();  // Sort keys by ASCII order
+    const keys = Object.keys(paramsForSignature).sort((a, b) => a.localeCompare(b));  // Sort keys by ASCII order
 
     let stringToSign = '';
     keys.forEach((key) => {
@@ -103,7 +102,7 @@ router.post('/', async (req, res) => {
 
         console.log('API response:', response.data);
 
-        if (response.data && response.data.scrobbles) {
+        if (response.data?.scrobbles) {
             console.log(`🎵 Scrobbled successfully -> ${artist} - ${title} @ ${new Date(timestamp * 1000).toLocaleString()}`);
             res.json({ message: 'Song scrobbled successfully!', scrobbles: response.data.scrobbles });
         } else {
