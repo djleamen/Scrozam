@@ -1,7 +1,9 @@
-/*
-    Route to fetch album art from Last.fm API
-    This endpoint allows the frontend to get album artwork without exposing the API key
-*/
+/**
+ * Route to fetch album art from Last.fm API based on artist and track title.
+ * If album art is not found, it falls back to artist image.
+ * 
+ * Written by DJ Leamen 2024-2026
+ */
 
 const express = require('express');
 const axios = require('axios');
@@ -9,8 +11,15 @@ const router = express.Router();
 
 const API_KEY = process.env.LAST_API_KEY;
 
-// Helper function to extract largest image from Last.fm image array
 const extractLargestImage = (images) => {
+  /**
+   * Helper function to extract the largest image URL from Last.fm image array.
+   * Last.fm image sizes (from smallest to largest):
+   * small, medium, large, extralarge, mega
+   * 
+   * @param {Array} images - Array of image objects from Last.fm
+   * @returns {string|null} - URL of the largest image or null if none found
+   */
   if (!images || images.length === 0) return null;
   
   const largestImage = images.find(img => img.size === 'extralarge') || 
@@ -20,8 +29,14 @@ const extractLargestImage = (images) => {
   return largestImage?.['#text'] || null;
 };
 
-// Function to fetch album info from Last.fm
 const fetchAlbumInfo = async (artist, albumName) => {
+  /**
+   * Fetches album information from Last.fm API.
+   * 
+   * @param {string} artist - Artist name
+   * @param {string} albumName - Album name
+   * @returns {string|null}
+   */
   try {
     const response = await axios.get('https://ws.audioscrobbler.com/2.0/', {
       params: {
@@ -42,8 +57,13 @@ const fetchAlbumInfo = async (artist, albumName) => {
   return null;
 };
 
-// Function to fetch artist info from Last.fm
 const fetchArtistInfo = async (artist) => {
+  /**
+ * Fetches artist information from Last.fm API.
+ * 
+ * @param {string} artist - Artist name
+ * @returns {string|null}
+ */
   try {
     const response = await axios.get('https://ws.audioscrobbler.com/2.0/', {
       params: {
@@ -64,6 +84,11 @@ const fetchArtistInfo = async (artist) => {
 };
 
 router.post('/', async (req, res) => {
+  /**
+   * POST /albumArt
+   * Request body: { artist: string, title: string }
+   * Response: { albumArt: string } or { error: string }
+   */
   const { artist, title } = req.body;
 
   if (!artist || !title) {

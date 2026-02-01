@@ -1,8 +1,8 @@
-/*
-    This file contains the route for scrobbling a song to Last.fm.
-    It generates an API signature and sends a POST request to the Last.fm API.
-    It returns the response from the Last.fm API to the client.
-*/
+/**
+ * Route to scrobble songs to Last.fm.
+ * 
+ * Written by DJ Leamen 2024-2026
+ */
 
 const express = require('express');
 const router = express.Router();
@@ -17,8 +17,10 @@ const SHARED_SECRET = process.env.LAST_SHARED_SECRET.trim();
 
 let SESSION_KEY;
 
-// Load session key from file
 function loadSessionKey() {
+    /**
+     * Loads the Last.fm session key from a local file.
+     */
     try {
         SESSION_KEY = fs.readFileSync(path.join(__dirname, '../session_key.txt'), 'utf8').trim();
         console.log('Loaded session key:', SESSION_KEY);
@@ -29,9 +31,14 @@ function loadSessionKey() {
 
 loadSessionKey();
 
-console.log('Loaded SHARED_SECRET:', SHARED_SECRET);
-// Function to generate the API signature
+console.log('Loaded SHARED_SECRET');
 function generateSignature(params) {
+    /**
+     * Generates the Last.fm API signature.
+     * 
+     * @param {Object} params - The parameters to include in the signature
+     * @returns {string} - The generated MD5 signature
+     */
     // Remove 'format' before generating the signature
     const paramsForSignature = { ...params };
     delete paramsForSignature['format']; 
@@ -52,6 +59,11 @@ function generateSignature(params) {
 }
 
 router.post('/', async (req, res) => {
+    /**
+     * POST /scrobbleSong
+     * Request body: { artist: string, title: string, album: string, chosenByUser: string }
+     * Response: { message: string, scrobbles: object } or error message
+     */
     const { artist, title, album = '', chosenByUser = '1' } = req.body;
 
     if (!artist || !title) {

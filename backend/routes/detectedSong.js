@@ -1,23 +1,30 @@
-/*
-    This file contains the route for storing and retrieving the last detected song.
-    The detected song is stored in a variable and can be accessed by the frontend.
-    The song is reset after being sent to the frontend.
-*/
+/**
+ * Route to store and retrieve the last detected song.
+ * 
+ * Written by DJ Leamen 2024-2026
+ */
 
 const express = require('express');
 const router = express.Router();
 
 let detectedSong = null;  // Store the last detected song
 
-// Store the detected song on POST
 router.post('/', (req, res) => {
+    /**
+     * POST /detectedSong
+     * Request body: { title: string, artist: string, album: string, ... }
+     * Response: 200 OK
+     */
     detectedSong = req.body;
     console.log('Stored detected song:', detectedSong);  
     res.status(200).send('Song data received');
 });
 
-// Return the last detected song on GET, then clear it
 router.get('/', (req, res) => {
+    /**
+     * GET /detectedSong
+     * Response: { title: string, artist: string, album: string, ... } or null
+     */
     if (detectedSong) {
         console.log(`🎧 Sending detected song to frontend: ${detectedSong.title} - ${detectedSong.artist}`);
     } else {

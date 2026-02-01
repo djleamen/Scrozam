@@ -1,14 +1,21 @@
-/*
-  This is the main component of the frontend application. It displays the UI and handles the logic for starting and stopping the audio recording, as well as fetching and displaying the detected song information.
-  The component uses the MediaRecorder API to record audio from the user's microphone and sends the audio sample to the backend for song detection.
-  When a song is detected, it updates the UI with the detected song information and scrobbles the song to Last.fm.
-*/
+/**
+ * Main frontend application file for Scrozam.
+ * Handles audio recording, song detection, displaying track info, and scrobbling to Last.fm.
+ * 
+ * Written by DJ Leamen 2024-2026
+ */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import logo from './logo.png';
 
 function App() {
+  /**
+   * Main App component for Scrozam frontend.
+   * Manages audio recording, song detection, album art fetching, and scrobbling.
+   * 
+   * @returns {JSX.Element}
+   */
   const [trackInfo, setTrackInfo] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const [continuousListening, setContinuousListening] = useState(false);
@@ -22,8 +29,14 @@ function App() {
   const lastScrobbledTrack = useRef('');
   const lastAlbumArtTrack = useRef('');
 
-  // Function to fetch album art from backend
   const fetchAlbumArt = useCallback(async (artist, title) => {
+    /**
+     * Fetches album art from the backend for the given artist and title.
+     * Caches the last fetched track to avoid redundant requests.
+     * 
+     * @param {string} artist - Artist name
+     * @param {string} title - Track title
+     */
     const trackKey = `${artist}-${title}`;
     
     // Only fetch if this is a different track than the last one we fetched album art for
@@ -67,6 +80,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    /**
+     * Polls the backend for the last detected song every 3 seconds.
+     * Updates the track info and fetches album art if a new song is detected.
+     */
     const fetchTrack = async () => {
       try {
         const response = await fetch('http://localhost:3000/detected-song');
@@ -105,6 +122,9 @@ function App() {
   }, [fetchAlbumArt]);
 
   const stopStream = useCallback(() => {
+    /**
+     * Stops the audio stream and recording.
+     */
     setIsListening(false);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -112,6 +132,10 @@ function App() {
   }, []);
 
   const handleStartListening = async () => {
+    /**
+     * Starts listening to the microphone and recording audio.
+     * Sends the recorded audio to the backend for song detection.
+     */
     setIsListening(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -190,6 +214,9 @@ function App() {
 
   // NEW function to stop listening
   const handleStopListening = () => {
+    /**
+     * Stops listening to the microphone and recording audio.
+     */
     setContinuousListening(false);
     setIsListening(false);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -202,6 +229,13 @@ function App() {
   };
 
   const handleNewTrack = async (artist, title) => {
+    /**
+     * Handles scrobbling a new track to Last.fm.
+     * Ensures the same track is not scrobbled multiple times.
+     * 
+     * @param {string} artist - Artist name
+     * @param {string} title - Track title
+     */
     console.log(`handleNewTrack triggered with: ${artist} - ${title}`);
     if (`${artist}-${title}` !== lastScrobbledTrack.current) {
       lastScrobbledTrack.current = `${artist}-${title}`;

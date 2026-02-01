@@ -1,8 +1,9 @@
-/*
-    This file is the entry point for the backend server.
-    It initializes the server, sets up the routes, and listens for incoming requests.
-    It also handles the Last.fm authentication flow and stores the session key.
-*/
+/**
+ * Main backend application file for Scrozam.
+ * Handles authentication with Last.fm and sets up routes for song detection and scrobbling.
+ * 
+ * Written by DJ Leamen 2024-2026
+ */
 
 const express = require('express');
 const axios = require('axios');
@@ -42,6 +43,9 @@ app.use('/detected-song', detectedSongRoute);
 app.use('/album-art', albumArtRoute);
 
 app.listen(PORT, () => {
+    /**
+     * Starts the backend server on the specified port.
+     */
     console.log(`Backend server running on port ${PORT}`);
 });
 
@@ -57,15 +61,27 @@ try {
 }
 
 app.get('/', (req, res) => {
+    /**
+     * GET /
+     * Simple route to check if the backend is running.
+     */
     res.send('Backend is running!');
 });
 
 app.get('/auth', (req, res) => {
+    /**
+     * GET /auth
+     * Redirects the user to Last.fm authentication page.
+     */
     const authUrl = `https://www.last.fm/api/auth/?api_key=${API_KEY}&cb=http://localhost:3000/callback`;
     res.redirect(authUrl);
 });
 
 app.get('/callback', limiter, async (req, res) => {
+    /**
+     * GET /callback
+     * Handles the callback from Last.fm after user authentication.
+     */
     console.log('Received callback with token:', req.query.token);
 
     const token = req.query.token;
