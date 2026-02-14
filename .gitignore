@@ -33,3 +33,5 @@ coverage/
 .Trashes
 ehthumbs.db
 Thumbs.db
+backend/.DS_Store
+frontend/.DS_Store
