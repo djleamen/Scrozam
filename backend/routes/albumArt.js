@@ -185,6 +185,28 @@ router.get('/proxy', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('Missing url parameter');
 
+  // Only allow proxying images from a restricted set of Last.fm/CDN hosts
+  const ALLOWED_IMAGE_HOSTS = new Set([
+    'lastfm.freetls.fastly.net',
+    'lastfm-img2.akamaized.net',
+    'userserve-ak.last.fm',
+    'www.last.fm',
+  ]);
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch (e) {
+    return res.status(400).send('Invalid url parameter');
+  }
+
+  const protocol = parsedUrl.protocol;
+  const hostname = parsedUrl.hostname.toLowerCase();
+
+  if ((protocol !== 'http:' && protocol !== 'https:') || !ALLOWED_IMAGE_HOSTS.has(hostname)) {
+    return res.status(400).send('URL not allowed');
+  }
+
   try {
     const imageRes = await axios.get(url, {
       responseType: 'stream',
