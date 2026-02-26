@@ -16,12 +16,19 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // ─── CORS (must come before session + routes) ─────────────────────────────────
 app.use(cors({
     origin: FRONTEND_URL,
     credentials: true,      // allow cookies
 }));
+
+// If running behind a reverse proxy (e.g. Heroku, Render, nginx), let Express
+// know so that secure cookies work correctly when TLS is terminated upstream.
+if (IS_PRODUCTION) {
+    app.set('trust proxy', 1);
+}
 
 // ─── Session ──────────────────────────────────────────────────────────────────
 app.use(session({
@@ -30,7 +37,7 @@ app.use(session({
     saveUninitialized: false,
     cookie: {
         httpOnly: true,
-        secure: false,          // set true in production with HTTPS
+        secure: IS_PRODUCTION,   // enforce HTTPS-only cookies in production
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
