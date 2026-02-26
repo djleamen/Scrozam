@@ -1,11 +1,40 @@
 /**
- * In-memory user store for Scrozam.
- * Maps Google sub (user ID) to user profile and Last.fm session key.
+ * In-memory user store for Scrozam, backed by a JSON file for persistence.
+ * On startup the store is loaded from users.json; every mutation saves it back.
+ * This means Last.fm session keys and preferences survive server restarts.
  * 
  * Written by DJ Leamen 2024-2026
  */
 
-const users = {};
+const fs   = require('node:fs');
+const path = require('node:path');
+
+const STORE_PATH = path.join(__dirname, 'users.json');
+
+// ── Load from disk (or start fresh) ──────────────────────────────────────────
+
+let users = {};
+
+try {
+    if (fs.existsSync(STORE_PATH)) {
+        const raw = fs.readFileSync(STORE_PATH, 'utf8');
+        users = JSON.parse(raw);
+        console.log(`📂 Loaded ${Object.keys(users).length} user(s) from store.`);
+    }
+} catch (err) {
+    console.warn('⚠️  Could not load users.json, starting fresh.', err.message);
+    users = {};
+}
+
+// ── Persistence helper ────────────────────────────────────────────────────────
+
+function saveStore() {
+    try {
+        fs.writeFileSync(STORE_PATH, JSON.stringify(users, null, 2), 'utf8');
+    } catch (err) {
+        console.error('❌ Failed to save users.json:', err.message);
+    }
+}
 
 /**
  * Creates or retrieves a user entry.
@@ -21,7 +50,9 @@ function upsertUser(googleSub, profile) {
             name: profile.name,
             picture: profile.picture,
             lastfmSessionKey: null,
+            preferences: { theme: 'midnight', font: 'segoe' },
         };
+        saveStore();
     } else {
         // Update profile info in case it changed
         users[googleSub].email = profile.email;
@@ -48,6 +79,22 @@ function getUser(googleSub) {
 function setLastFmSessionKey(googleSub, sessionKey) {
     if (users[googleSub]) {
         users[googleSub].lastfmSessionKey = sessionKey;
+        saveStore();
+    }
+}
+
+/**
+ * Sets personalization preferences for a user.
+ * @param {string} googleSub
+ * @param {{ theme?: string, font?: string }} prefs
+ */
+function setPreferences(googleSub, prefs) {
+    if (users[googleSub]) {
+        users[googleSub].preferences = {
+            ...users[googleSub].preferences,
+            ...prefs,
+        };
+        saveStore();
     }
 }
 
@@ -63,7 +110,8 @@ function safeUser(user) {
         name: user.name,
         picture: user.picture,
         lastfmConnected: !!user.lastfmSessionKey,
+        preferences: user.preferences || { theme: 'midnight', font: 'segoe' },
     };
 }
 
-module.exports = { upsertUser, getUser, setLastFmSessionKey, safeUser };
+module.exports = { upsertUser, getUser, setLastFmSessionKey, setPreferences, safeUser };

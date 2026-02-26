@@ -11,7 +11,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const router = express.Router();
-const { upsertUser, getUser, setLastFmSessionKey, safeUser } = require('../userStore');
+const { upsertUser, getUser, setLastFmSessionKey, setPreferences, safeUser } = require('../userStore');
 require('dotenv').config();
 
 const LAST_API_KEY = process.env.LAST_API_KEY;
@@ -83,7 +83,12 @@ router.get('/me', (req, res) => {
  */
 router.post('/logout', (req, res) => {
     req.session.destroy(() => {
-        res.clearCookie('connect.sid');
+        res.clearCookie('connect.sid', {
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+            path: '/',
+        });
         res.json({ message: 'Logged out' });
     });
 });
@@ -156,6 +161,43 @@ router.get('/lastfm/callback', async (req, res) => {
         console.error('Last.fm callback error:', error.response?.data || error.message);
         res.redirect(`${FRONTEND_URL}/?error=lastfm_auth_failed`);
     }
+});
+
+// ─── Personalization ──────────────────────────────────────────────────────────
+
+const VALID_THEMES = ['midnight', 'crimson', 'ocean', 'forest', 'sunset', 'aurora'];
+const VALID_FONTS  = ['segoe', 'inter', 'mono', 'georgia', 'playfair'];
+
+/**
+ * PATCH /auth/preferences
+ * Saves theme and/or font preference for the current user.
+ */
+router.patch('/preferences', (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { theme, font } = req.body;
+    const updates = {};
+
+    if (theme !== undefined) {
+        if (!VALID_THEMES.includes(theme)) {
+            return res.status(400).json({ error: `Invalid theme. Must be one of: ${VALID_THEMES.join(', ')}` });
+        }
+        updates.theme = theme;
+    }
+
+    if (font !== undefined) {
+        if (!VALID_FONTS.includes(font)) {
+            return res.status(400).json({ error: `Invalid font. Must be one of: ${VALID_FONTS.join(', ')}` });
+        }
+        updates.font = font;
+    }
+
+    setPreferences(req.session.userId, updates);
+    const user = getUser(req.session.userId);
+    console.log(`🎨 Preferences updated for ${user.name}:`, updates);
+    res.json({ user: safeUser(user) });
 });
 
 module.exports = router;

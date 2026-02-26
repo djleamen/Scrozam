@@ -1,3 +1,4 @@
 node_modules/
 .env
 session_key.txt
+users.json

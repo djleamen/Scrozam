@@ -10,6 +10,7 @@ import './App.css';
 import logo from './logo.png';
 import { useAuth } from './AuthContext';
 import LoginPage from './components/LoginPage';
+import SettingsDropdown from './components/SettingsDropdown';
 
 // ── Main app (only rendered when fully authenticated) ─────────────────────────
 
@@ -211,6 +212,7 @@ function MainApp() {
         <img src={user.picture} alt={user.name} className="user-avatar" />
         <span className="user-name">{user.name}</span>
         <span className="lastfm-badge">🎵 Last.fm connected</span>
+        <SettingsDropdown />
         <button className="logout-btn" onClick={logout}>Sign out</button>
       </div>
 

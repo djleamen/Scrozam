@@ -6,6 +6,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { applyCSSVars } from './themes';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -65,9 +66,33 @@ export function AuthProvider({ children }) {
         window.location.href = `${BACKEND}/auth/lastfm`;
     }, []);
 
+    // Apply CSS vars whenever user preferences change; reset to defaults on logout
+    useEffect(() => {
+        if (user?.preferences) {
+            applyCSSVars(user.preferences.theme, user.preferences.font);
+        } else if (user === null) {
+            // Logged out — restore default theme so login page looks correct
+            applyCSSVars('midnight', 'segoe');
+        }
+    }, [user, user?.preferences?.theme, user?.preferences?.font]);
+
     /**
-     * Logs the user out.
+     * Saves personalization preferences to the backend and updates session.
+     * @param {string} theme
+     * @param {string} font
      */
+    const savePreferences = useCallback(async (theme, font) => {
+        const res = await fetch(`${BACKEND}/auth/preferences`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ theme, font }),
+        });
+        if (!res.ok) throw new Error('Failed to save preferences');
+        const data = await res.json();
+        setUser(data.user);
+    }, []);
+
     const logout = useCallback(async () => {
         await fetch(`${BACKEND}/auth/logout`, {
             method: 'POST',
@@ -77,7 +102,7 @@ export function AuthProvider({ children }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, loading, refreshUser, loginWithGoogle, connectLastFm, logout }}>
+        <AuthContext.Provider value={{ user, loading, refreshUser, loginWithGoogle, connectLastFm, logout, savePreferences }}>
             {children}
         </AuthContext.Provider>
     );
