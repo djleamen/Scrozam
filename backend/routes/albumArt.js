@@ -207,8 +207,10 @@ router.get('/proxy', async (req, res) => {
     return res.status(400).send('URL not allowed');
   }
 
+  const safeUrl = parsedUrl.toString();
+
   try {
-    const imageRes = await axios.get(url, {
+    const imageRes = await axios.get(safeUrl, {
       responseType: 'stream',
       headers: {
         'Referer': 'https://www.last.fm/',
