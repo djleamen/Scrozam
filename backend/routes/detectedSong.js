@@ -6,38 +6,20 @@
 
 const express = require('express');
 const router = express.Router();
-
-let detectedSong = null;  // Store the last detected song
-
-router.post('/', (req, res) => {
-    /**
-     * POST /detectedSong
-     * Request body: { title: string, artist: string, album: string, ... }
-     * Response: 200 OK
-     */
-    detectedSong = req.body;
-    console.log('Stored detected song:', detectedSong);  
-    res.status(200).send('Song data received');
-});
+const { popDetectedSong } = require('../songStore');
 
 router.get('/', (req, res) => {
     /**
-     * GET /detectedSong
-     * Response: { title: string, artist: string, album: string, ... } or null
+     * GET /detected-song
+     * Returns the most recently detected song and clears it, or null.
      */
-    if (detectedSong) {
-        console.log(`🎧 Sending detected song to frontend: ${detectedSong.title} - ${detectedSong.artist}`);
+    const song = popDetectedSong();
+    if (song) {
+        console.log(`🎧 Sending detected song to frontend: ${song.title} - ${song.artist}`);
     } else {
         console.log('📭 No new song detected, returning null.');
     }
-    
-    if (detectedSong) {
-        const songToSend = { ...detectedSong };  // Copy the song before resetting
-        detectedSong = null;  // **RESET detected song after sending**
-        res.json(songToSend);
-    } else {
-        res.json(null);  // Send null if no song is detected
-    }
+    res.json(song);  // null or song object
 });
 
 module.exports = router;

@@ -11,7 +11,7 @@ const multer = require('multer');
 const FormData = require('form-data');
 const crypto = require('node:crypto');  // For HMAC signature generation
 require('dotenv').config();
-const fs = require('node:fs');
+const { setDetectedSong } = require('../songStore');
 
 const ACRCloud_API_URL = process.env.ACR_URL;
 const ACCESS_KEY = process.env.ACR_ACCESS_KEY;
@@ -68,19 +68,10 @@ router.post('/', upload.single('sample'), async (req, res) => {
       // Log what’s being sent back to the frontend
       console.log(`Detected Song -> Title: ${title}, Artist: ${artist}`);
     
-      try {
-        // Store the detected song on the backend
-        await axios.post('http://localhost:3000/detected-song', {
-          title,
-          artist,
-        });
-      
-        console.log(`Posted detected song to backend: ${title} by ${artist}`);
-        res.json({ title, artist });  // Return the detected song to the client
-      } catch (postError) {
-        console.error('Failed to store detected song on backend:', postError);
-        res.status(500).send('Failed to store detected song');
-      }
+      // Store in songStore (no HTTP round-trip needed)
+      setDetectedSong({ title, artist });
+      console.log(`Stored detected song: ${title} by ${artist}`);
+      res.json({ title, artist });
     } else if (response.data.status.code === 1001) {
       console.warn('No result detected. Retrying...');
       res.status(204).send('No result detected. Please try again.');

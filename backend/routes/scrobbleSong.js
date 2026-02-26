@@ -8,28 +8,12 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const crypto = require('node:crypto');
-const fs = require('node:fs');
-const path = require('node:path');
 require('dotenv').config();
 
 const API_KEY = process.env.LAST_API_KEY;
 const SHARED_SECRET = process.env.LAST_SHARED_SECRET.trim();
 
-let SESSION_KEY;
-
-function loadSessionKey() {
-    /**
-     * Loads the Last.fm session key from a local file.
-     */
-    try {
-        SESSION_KEY = fs.readFileSync(path.join(__dirname, '../session_key.txt'), 'utf8').trim();
-        console.log('Loaded session key:', SESSION_KEY);
-    } catch (error) {
-        console.error('No session key found. Please authenticate via /auth.', error.message);
-    }
-}
-
-loadSessionKey();
+const { getUser } = require('../userStore');
 
 console.log('Loaded SHARED_SECRET');
 function generateSignature(params) {
@@ -70,10 +54,14 @@ router.post('/', async (req, res) => {
         return res.status(400).send('Artist and title are required');
     }
 
-    const timestamp = Math.floor(Date.now() / 1000);
+    // Get session key from authenticated user's account
+    const user = getUser(req.session.userId);
+    const SESSION_KEY = user?.lastfmSessionKey;
+    if (!SESSION_KEY) {
+        return res.status(403).send('Last.fm account not connected');
+    }
 
-    // Reload session key from file before making the request
-    loadSessionKey();
+    const timestamp = Math.floor(Date.now() / 1000);
 
     // Scrobble parameters (WITHOUT format=json in the signature)
     const params = {

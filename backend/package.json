@@ -15,8 +15,9 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.19.0",
     "form-data": "^4.0.1",
-    "multer": "^2.0.1",
-    "express-rate-limit": "^7.5.0"
+    "multer": "^2.0.1"
   }
 }
