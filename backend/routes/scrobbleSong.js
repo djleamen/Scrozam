@@ -11,11 +11,10 @@ const crypto = require('node:crypto');
 require('dotenv').config();
 
 const API_KEY = process.env.LAST_API_KEY;
-const SHARED_SECRET = process.env.LAST_SHARED_SECRET.trim();
+const SHARED_SECRET = process.env.LAST_SHARED_SECRET?.trim();
 
 const { getUser } = require('../userStore');
 
-console.log('Loaded SHARED_SECRET');
 function generateSignature(params) {
     /**
      * Generates the Last.fm API signature.
@@ -34,10 +33,7 @@ function generateSignature(params) {
         stringToSign += key + paramsForSignature[key];  // Concatenate key-value pairs
     });
 
-    // Append SHARED_SECRET exactly as it is
-    stringToSign += SHARED_SECRET.trim();
-
-    console.log('Final String for Signing (without format=json):', stringToSign);
+    stringToSign += SHARED_SECRET;
 
     return crypto.createHash('md5').update(stringToSign, 'utf8').digest('hex');
 }
@@ -48,10 +44,14 @@ router.post('/', async (req, res) => {
      * Request body: { artist: string, title: string, album: string, chosenByUser: string }
      * Response: { message: string, scrobbles: object } or error message
      */
-    const { artist, title, album = '', chosenByUser = '1' } = req.body;
+    const { artist, title, chosenByUser = '1' } = req.body;
 
     if (!artist || !title) {
         return res.status(400).send('Artist and title are required');
+    }
+
+    if (!API_KEY || !SHARED_SECRET) {
+        return res.status(500).send('Last.fm API credentials are not configured');
     }
 
     // Get session key from authenticated user's account
@@ -80,18 +80,6 @@ router.post('/', async (req, res) => {
     // Add 'format=json' ONLY to the request, NOT in the signature
     params['format'] = 'json';
 
-    // Log only non-sensitive parameters for debugging
-    const safeParams = {
-        method: params.method,
-        artist: params.artist,
-        track: params.track,
-        album: album,
-        timestamp: params.timestamp,
-        chosenByUser: params.chosenByUser,
-        format: params.format
-    };
-    console.log('Corrected Request parameters (safe):', safeParams);
-
     try {
         const response = await axios.post('https://ws.audioscrobbler.com/2.0/', 
             new URLSearchParams(params).toString(), {
@@ -100,17 +88,15 @@ router.post('/', async (req, res) => {
             family: 4,  // Force IPv4 in case of IPv6 issues
         });
 
-        console.log('API response:', response.data);
-
         if (response.data?.scrobbles) {
             console.log(`🎵 Scrobbled successfully -> ${artist} - ${title} @ ${new Date(timestamp * 1000).toLocaleString()}`);
             res.json({ message: 'Song scrobbled successfully!', scrobbles: response.data.scrobbles });
         } else {
-            console.error('❌ Failed to scrobble song:', response.data);
+            console.error('❌ Failed to scrobble song');
             res.status(500).send('Failed to scrobble song');
         }
     } catch (error) {
-        console.error('Error scrobbling song:', error.response?.data || error.message);
+        console.error('Error scrobbling song:', error.response?.status || error.message);
         res.status(500).send('Error scrobbling song');
     }
 });

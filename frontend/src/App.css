@@ -733,8 +733,8 @@ button:active:not(:disabled) {
   border-radius: 14px;
   padding: 16px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   animation: fadeInUp 0.18s ease-out;
 }
 

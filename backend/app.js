@@ -10,6 +10,7 @@ const express = require('express');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
+const helmet = require('helmet');
 const csrf = require('csurf');
 require('dotenv').config();
 
@@ -17,6 +18,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+if (IS_PRODUCTION && !process.env.SESSION_SECRET) {
+    throw new Error('SESSION_SECRET must be set in production');
+}
+
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 
 // ─── CORS (must come before session + routes) ─────────────────────────────────
 app.use(cors({
@@ -43,18 +52,61 @@ app.use(session({
     },
 }));
 
+app.use(express.json({ limit: '256kb' }));
+
 // ─── CSRF protection ──────────────────────────────────────────────────────────
 const csrfProtection = csrf({ cookie: false });
 app.use(csrfProtection);
 
-app.use(express.json());
-
 // ─── Rate limiter ─────────────────────────────────────────────────────────────
-const limiter = rateLimit({
+const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 1000,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
 });
-app.use(limiter);
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many authentication requests, please slow down.' },
+});
+
+const detectLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 45,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many detection requests, please wait before retrying.' },
+});
+
+const scrobbleLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many scrobble requests, please slow down.' },
+});
+
+const pollingLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 600,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Polling rate limit reached, please wait.' },
+});
+
+const albumArtLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 180,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many album art requests, please slow down.' },
+});
+app.use(globalLimiter);
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
 const { getUser } = require('./userStore');
@@ -93,21 +145,31 @@ app.get('/csrf-token', (req, res) => {
 });
 
 // Public auth routes
-app.use('/auth', authRoute);
+app.use('/auth', authLimiter, authRoute);
 
 // Album art: POST requires auth (art lookup), GET /proxy is public (browser <img> tags don't send cookies)
-app.use('/album-art', (req, res, next) => {
+app.use('/album-art', albumArtLimiter, (req, res, next) => {
     if (req.method === 'GET') return next(); // proxy endpoint – no auth needed
     requireAuth(req, res, next);
 }, albumArtRoute);
 
 // Protected routes
-app.use('/detect-song',   requireAuth, detectSongRoute);
-app.use('/detected-song', requireAuth, detectedSongRoute);
-app.use('/scrobble-song', requireAuth, requireLastFm, scrobbleSongRoute);
+app.use('/detect-song',   requireAuth, detectLimiter, detectSongRoute);
+app.use('/detected-song', requireAuth, pollingLimiter, detectedSongRoute);
+app.use('/scrobble-song', requireAuth, requireLastFm, scrobbleLimiter, scrobbleSongRoute);
 
 // Health check
 app.get('/', (req, res) => res.send('Backend is running!'));
+
+app.use((err, req, res, next) => {
+    if (err && err.code === 'EBADCSRFTOKEN') {
+        return res.status(403).json({ error: 'Invalid CSRF token' });
+    }
+    if (err && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ error: 'Audio file is too large' });
+    }
+    return next(err);
+});
 
 app.listen(PORT, () => {
     console.log(`Backend server running on port ${PORT}`);

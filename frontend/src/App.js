@@ -20,7 +20,7 @@ function MainApp() {
    * album art, and Last.fm scrobbling. Only shown when the user has
    * both a Google session and a connected Last.fm account.
    */
-  const { user, logout } = useAuth();
+  const { user, logout, authFetch, backendUrl } = useAuth();
 
   const [trackInfo, setTrackInfo] = useState(null);
   const [isListening, setIsListening] = useState(false);
@@ -49,10 +49,9 @@ function MainApp() {
     setAlbumArtLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/album-art', {
+      const response = await authFetch(`${backendUrl}/album-art`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ artist, title }),
       });
 
@@ -70,7 +69,7 @@ function MainApp() {
     }
 
     setAlbumArtLoading(false);
-  }, []);
+  }, [authFetch, backendUrl]);
 
   const handleNewTrack = useCallback(async (artist, title) => {
     /**
@@ -81,10 +80,9 @@ function MainApp() {
     lastScrobbledTrack.current = `${artist}-${title}`;
 
     try {
-      const response = await fetch('http://localhost:3000/scrobble-song', {
+      const response = await authFetch(`${backendUrl}/scrobble-song`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ artist, title }),
       });
       if (response.ok) {
@@ -95,13 +93,13 @@ function MainApp() {
     } catch (error) {
       console.error('Error scrobbling to Last.fm:', error);
     }
-  }, []);
+  }, [authFetch, backendUrl]);
 
   // Poll for detected songs every 3 seconds
   useEffect(() => {
     const fetchTrack = async () => {
       try {
-        const response = await fetch('http://localhost:3000/detected-song', { credentials: 'include' });
+        const response = await authFetch(`${backendUrl}/detected-song`);
         const data = await response.json();
 
         if (data?.title && data?.artist) {
@@ -122,7 +120,7 @@ function MainApp() {
 
     const interval = setInterval(fetchTrack, 3000);
     return () => clearInterval(interval);
-  }, [fetchAlbumArt, handleNewTrack]);
+  }, [authFetch, backendUrl, fetchAlbumArt, handleNewTrack]);
 
   const stopStream = useCallback(() => {
     setIsListening(false);
@@ -153,9 +151,8 @@ function MainApp() {
           formData.append('sample', audioBlob, 'audio.wav');
 
           try {
-            const response = await fetch('http://localhost:3000/detect-song', {
+            const response = await authFetch(`${backendUrl}/detect-song`, {
               method: 'POST',
-              credentials: 'include',
               body: formData,
             });
 

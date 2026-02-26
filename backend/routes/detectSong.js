@@ -17,7 +17,21 @@ const ACRCloud_API_URL = process.env.ACR_URL;
 const ACCESS_KEY = process.env.ACR_ACCESS_KEY;
 const ACCESS_SECRET = process.env.ACR_SHARED;
 
-const upload = multer();
+const upload = multer({
+  limits: {
+    fileSize: 2 * 1024 * 1024,
+  },
+});
+
+const ALLOWED_AUDIO_TYPES = new Set([
+  'audio/wav',
+  'audio/x-wav',
+  'audio/wave',
+  'audio/webm',
+  'audio/ogg',
+  'audio/mpeg',
+  'audio/mp4',
+]);
 
 router.post('/', upload.single('sample'), async (req, res) => {
   /**
@@ -27,6 +41,14 @@ router.post('/', upload.single('sample'), async (req, res) => {
    */
   if (!req.file?.buffer) {
     return res.status(400).send('No audio data provided');
+  }
+
+  if (!ALLOWED_AUDIO_TYPES.has(req.file.mimetype)) {
+    return res.status(400).send('Unsupported audio format');
+  }
+
+  if (!ACRCloud_API_URL || !ACCESS_KEY || !ACCESS_SECRET) {
+    return res.status(500).send('Song detection service is not configured');
   }
 
   // 1. Calculate audio sample size
@@ -53,13 +75,16 @@ router.post('/', upload.single('sample'), async (req, res) => {
   // 4. Send the audio sample to ACRCloud API
   try {
     const headers = formData.getHeaders();
-    const response = await axios.post(ACRCloud_API_URL, formData, { headers });
-
-    console.log('ACRCloud Response:', response.data);
+    const response = await axios.post(ACRCloud_API_URL, formData, {
+      headers,
+      timeout: 10000,
+    });
 
     if (response.data.status.code === 0) {
       const musicData = response.data.metadata.music[0];
-      console.log('Full music data from ACRCloud:', musicData);
+      if (!musicData?.title || !musicData?.artists?.[0]?.name) {
+        return res.status(502).send('Song metadata incomplete from detection service');
+      }
     
       // Extract title and artist correctly
       const title = musicData.title;
@@ -73,14 +98,17 @@ router.post('/', upload.single('sample'), async (req, res) => {
       console.log(`Stored detected song: ${title} by ${artist}`);
       res.json({ title, artist });
     } else if (response.data.status.code === 1001) {
-      console.warn('No result detected. Retrying...');
+      console.warn('No result detected.');
       res.status(204).send('No result detected. Please try again.');
     } else {
-      console.error('Song detection failed:', response.data.status.msg);
+      console.error('Song detection failed:', response.data.status.code);
       res.status(500).send('Song detection failed');
     }
   } catch (error) {
-    console.error('Error detecting song:', error.message);
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).send('Audio file is too large');
+    }
+    console.error('Error detecting song:', error.response?.status || error.message);
     res.status(500).send('Error detecting song');
   }
 });

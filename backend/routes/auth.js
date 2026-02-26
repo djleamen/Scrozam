@@ -18,6 +18,7 @@ const LAST_API_KEY = process.env.LAST_API_KEY;
 const LAST_SHARED_SECRET = process.env.LAST_SHARED_SECRET;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // ─── Google SSO ───────────────────────────────────────────────────────────────
 
@@ -35,9 +36,10 @@ router.post('/google', async (req, res) => {
 
     try {
         // Verify the Google ID token via Google's tokeninfo endpoint
-        const googleRes = await axios.get(
-            `https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`
-        );
+        const googleRes = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
+            params: { id_token: credential },
+            timeout: 10000,
+        });
 
         const { sub, email, name, picture } = googleRes.data;
 
@@ -48,11 +50,11 @@ router.post('/google', async (req, res) => {
         const user = upsertUser(sub, { email, name, picture });
         req.session.userId = sub;
 
-        console.log(`✅ Google sign-in: ${name} (${email})`);
+        console.log(`✅ Google sign-in successful for user ${sub}`);
         res.json({ user: safeUser(user) });
 
     } catch (error) {
-        console.error('Google auth error:', error.response?.data || error.message);
+        console.error('Google auth error:', error.response?.status || error.message);
         res.status(401).json({ error: 'Google authentication failed' });
     }
 });
@@ -85,7 +87,7 @@ router.post('/logout', (req, res) => {
     req.session.destroy(() => {
         res.clearCookie('connect.sid', {
             httpOnly: true,
-            secure: false,
+            secure: IS_PRODUCTION,
             sameSite: 'lax',
             path: '/',
         });
@@ -148,7 +150,7 @@ router.get('/lastfm/callback', async (req, res) => {
 
         const sessionKey = response.data?.session?.key;
         if (!sessionKey) {
-            console.error('Last.fm session exchange failed:', response.data);
+            console.error('Last.fm session exchange failed');
             return res.redirect(`${FRONTEND_URL}/?error=lastfm_auth_failed`);
         }
 
@@ -158,7 +160,7 @@ router.get('/lastfm/callback', async (req, res) => {
         res.redirect(`${FRONTEND_URL}/?lastfm=connected`);
 
     } catch (error) {
-        console.error('Last.fm callback error:', error.response?.data || error.message);
+        console.error('Last.fm callback error:', error.response?.status || error.message);
         res.redirect(`${FRONTEND_URL}/?error=lastfm_auth_failed`);
     }
 });
@@ -196,7 +198,7 @@ router.patch('/preferences', (req, res) => {
 
     setPreferences(req.session.userId, updates);
     const user = getUser(req.session.userId);
-    console.log(`🎨 Preferences updated for ${user.name}:`, updates);
+    console.log(`🎨 Preferences updated for user ${req.session.userId}`);
     res.json({ user: safeUser(user) });
 });
 
