@@ -10,6 +10,7 @@ const express = require('express');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
+const csrf = require('csurf');
 require('dotenv').config();
 
 const app = express();
@@ -34,6 +35,10 @@ app.use(session({
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
 }));
+
+// ─── CSRF protection ──────────────────────────────────────────────────────────
+const csrfProtection = csrf({ cookie: false });
+app.use(csrfProtection);
 
 app.use(express.json());
 
@@ -74,6 +79,11 @@ const detectSongRoute  = require('./routes/detectSong');
 const scrobbleSongRoute = require('./routes/scrobbleSong');
 const detectedSongRoute = require('./routes/detectedSong');
 const albumArtRoute     = require('./routes/albumArt');
+
+// CSRF token endpoint for frontend to retrieve token
+app.get('/csrf-token', (req, res) => {
+    res.json({ csrfToken: req.csrfToken() });
+});
 
 // Public auth routes
 app.use('/auth', authRoute);
