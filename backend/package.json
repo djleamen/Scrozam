@@ -18,6 +18,7 @@
     "express-rate-limit": "^7.5.0",
     "express-session": "^1.19.0",
     "form-data": "^4.0.1",
-    "multer": "^2.0.1"
+    "multer": "^2.0.1",
+    "csurf": "^1.11.0"
   }
 }
