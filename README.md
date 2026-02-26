@@ -5,7 +5,7 @@
 ![Backend](https://img.shields.io/badge/backend-Node.js-339933?logo=node.js)
 ![ACRCloud API](https://img.shields.io/badge/API-ACRCloud-orange)
 ![Last.fm](https://img.shields.io/badge/Integration-Last.fm-red)
-![Last Commit](https://img.shields.io/github/last-commit/djleamen/scrozam)
+![Last Commit](https://img.shields.io/github/last-commit/djleamen/Scrozam)
 ![Issues](https://img.shields.io/github/issues/djleamen/scrozam)
 
 *Scrozam!* is a web application that detects songs using the ACRCloud API and scrobbles the identified tracks to a user's Last.fm account.
