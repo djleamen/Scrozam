@@ -1,6 +1,7 @@
 {
-  "short_name": "Scrozam",
-  "name": "React App",
+  "short_name": "Scrozam!",
+  "name": "Scrozam!",
+  "description": "Identify songs around you and scrobble them to Last.fm automatically.",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +21,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#0B0C14",
+  "background_color": "#141827"
 }

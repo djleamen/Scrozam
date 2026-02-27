@@ -7,10 +7,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
-import logo from './logo.png';
 import { useAuth } from './AuthContext';
 import LoginPage from './components/LoginPage';
 import SettingsDropdown from './components/SettingsDropdown';
+import OrbitDot from './components/OrbitDot';
 
 // ── Main app (only rendered when fully authenticated) ─────────────────────────
 
@@ -27,12 +27,28 @@ function MainApp() {
   const [continuousListening, setContinuousListening] = useState(false);
   const [albumArt, setAlbumArt] = useState(null);
   const [albumArtLoading, setAlbumArtLoading] = useState(false);
+  const [transientOrbitState, setTransientOrbitState] = useState(null);
 
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
+  const orbitStateTimeoutRef = useRef(null);
   const lastScrobbledTrack = useRef('');
   const lastAlbumArtTrack = useRef('');
   const lastPolledTrack = useRef(''); // tracks what the poll loop has already handled
+
+  const flashOrbitState = useCallback((state, duration = 500) => {
+    if (orbitStateTimeoutRef.current) {
+      clearTimeout(orbitStateTimeoutRef.current);
+    }
+
+    setTransientOrbitState(state);
+    orbitStateTimeoutRef.current = setTimeout(() => {
+      setTransientOrbitState(null);
+      orbitStateTimeoutRef.current = null;
+    }, duration);
+  }, []);
+
+  const orbitState = transientOrbitState || (isListening ? 'listening' : 'ready');
 
   const fetchAlbumArt = useCallback(async (artist, title) => {
     /**
@@ -87,13 +103,24 @@ function MainApp() {
       });
       if (response.ok) {
         console.log(`✅ Scrobbled: ${title} by ${artist}`);
+        flashOrbitState('success', 450);
       } else {
         console.error('Failed to scrobble song');
+        flashOrbitState('error', 700);
       }
     } catch (error) {
       console.error('Error scrobbling to Last.fm:', error);
+      flashOrbitState('error', 700);
     }
-  }, [authFetch, backendUrl]);
+  }, [authFetch, backendUrl, flashOrbitState]);
+
+  useEffect(() => {
+    return () => {
+      if (orbitStateTimeoutRef.current) {
+        clearTimeout(orbitStateTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Poll for detected songs every 3 seconds
   useEffect(() => {
@@ -115,12 +142,13 @@ function MainApp() {
         }
       } catch (error) {
         console.error('Error fetching detected song:', error);
+        flashOrbitState('error', 700);
       }
     };
 
     const interval = setInterval(fetchTrack, 3000);
     return () => clearInterval(interval);
-  }, [authFetch, backendUrl, fetchAlbumArt, handleNewTrack]);
+  }, [authFetch, backendUrl, fetchAlbumArt, handleNewTrack, flashOrbitState]);
 
   const stopStream = useCallback(() => {
     setIsListening(false);
@@ -158,6 +186,7 @@ function MainApp() {
 
             if (response.status === 204) {
               console.warn('No result detected. Retrying…');
+              flashOrbitState('error', 700);
               if (continuousListening) setTimeout(startRecording, 500);
               else stopStream();
               return;
@@ -174,6 +203,7 @@ function MainApp() {
 
           } catch (error) {
             console.error('Error detecting song:', error);
+            flashOrbitState('error', 700);
           }
         };
 
@@ -186,6 +216,7 @@ function MainApp() {
       startRecording();
     } catch (error) {
       console.error('Error accessing microphone:', error);
+      flashOrbitState('error', 700);
       setIsListening(false);
     }
   };
@@ -203,9 +234,12 @@ function MainApp() {
   };
 
   return (
-    <div className="App">
-      {/* ── User header ─────────────────────────────────────────────────── */}
+    <div className="App app-shell">
       <div className="user-header">
+        <div className="app-brand-mini">
+          <OrbitDot state="idle" size="sm" />
+          <span className="app-brand-name">Scrozam!</span>
+        </div>
         <img src={user.picture} alt={user.name} className="user-avatar" />
         <span className="user-name">{user.name}</span>
         <span className="lastfm-badge">🎵 Last.fm connected</span>
@@ -213,74 +247,93 @@ function MainApp() {
         <button className="logout-btn" onClick={logout}>Sign out</button>
       </div>
 
-      <header className={`App-header ${trackInfo ? 'has-track' : ''}`}>
-        <div className="toggle-container">
-          <label>
-            <input
-              type="checkbox"
-              checked={continuousListening}
-              onChange={(e) => setContinuousListening(e.target.checked)}
-            />
-            Continuous Listening Mode
-          </label>
-        </div>
-
-        <div className="left-section">
-          <img
-            src={logo}
-            className={`App-logo ${isListening ? 'listening' : ''}`}
-            alt="Scrozam Logo"
-          />
-          <h1 className="main-title">Welcome to Scrozam!</h1>
-          <p className="subtitle">Listen to music and scrobble tracks to Last.fm</p>
-
-          <div className="controls-section">
+      <main className="music-layout">
+        <section className="now-playing-panel" aria-live="polite">
+          <div className="panel-head">
+            <p className="panel-label">Now Playing</p>
             <div className="status-indicator">
-              <div className={`status-dot ${isListening ? 'listening' : 'idle'}`}></div>
+              <OrbitDot state={orbitState} size="xs" />
               <span>{isListening ? 'Listening for music...' : 'Ready to listen'}</span>
             </div>
+          </div>
 
+          <div className="album-art-container">
+            {albumArtLoading && (
+              <div className="album-art-placeholder">Loading album art...</div>
+            )}
+            {!albumArtLoading && albumArt && (
+              <img src={albumArt} alt="Album Art" className="album-art" />
+            )}
+            {!albumArtLoading && !albumArt && (
+              <div className="album-art-placeholder">Waiting for the first detected track</div>
+            )}
+          </div>
+
+          <div className="track-info">
+            {trackInfo ? (
+              <>
+                <h2>Detected Track</h2>
+                <div className="track-detail">
+                  <strong>Title</strong>
+                  <span>{trackInfo.title}</span>
+                </div>
+                <div className="track-detail">
+                  <strong>Artist</strong>
+                  <span>{trackInfo.artist}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2>Listening Queue</h2>
+                <div className="track-detail">
+                  <strong>Status</strong>
+                  <span>Start listening to capture your first song.</span>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
+        <section className="control-panel">
+          <h1 className="main-title">Hear it. Catch it. Scrobble it.</h1>
+          <p className="subtitle">Ambient sound to Last.fm, instantly.</p>
+
+          <div className="toggle-container">
+            <label className="mode-switch" htmlFor="continuousModeToggle">
+              <input
+                id="continuousModeToggle"
+                type="checkbox"
+                checked={continuousListening}
+                onChange={(e) => setContinuousListening(e.target.checked)}
+              />
+              <span className="switch-track" aria-hidden="true">
+                <span className="switch-thumb" />
+              </span>
+              <span className="mode-copy">
+                <span className="mode-title">Continuous Mode</span>
+                <span className="mode-subtitle">Keep listening between detections</span>
+              </span>
+            </label>
+          </div>
+
+          <div className="controls-section">
             <div className="button-group">
               <button onClick={handleStartListening} disabled={isListening}>
                 {isListening ? '🎧 Listening...' : '🎵 Start Listening'}
               </button>
-              {continuousListening && isListening && (
+              {isListening && (
                 <button onClick={handleStopListening} className="stop-button">
                   ⏹️ Stop Listening
                 </button>
               )}
             </div>
-          </div>
-        </div>
 
-        {trackInfo && (
-          <div className={`right-section ${trackInfo ? 'visible' : ''}`}>
-            <div className="album-art-container">
-              {albumArtLoading && (
-                <div className="album-art-placeholder">Loading album art...</div>
-              )}
-              {!albumArtLoading && albumArt && (
-                <img src={albumArt} alt="Album Art" className="album-art" />
-              )}
-              {!albumArtLoading && !albumArt && (
-                <div className="album-art-placeholder">No album art available</div>
-              )}
-            </div>
-
-            <div className="track-info side-layout">
-              <h2>Detected Track</h2>
-              <div className="track-detail">
-                <strong>Title</strong>
-                <span>{trackInfo.title}</span>
-              </div>
-              <div className="track-detail">
-                <strong>Artist</strong>
-                <span>{trackInfo.artist}</span>
-              </div>
-            </div>
+            <p className="control-footnote">
+              Scrozam detects tracks and scrobbles to Last.fm automatically.
+            </p>
           </div>
-        )}
-      </header>
+        </section>
+      </main>
     </div>
   );
 }

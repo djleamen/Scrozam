@@ -9,10 +9,10 @@
 import React, { useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../AuthContext';
-import logo from '../logo.png';
 
 export default function LoginPage() {
     const { user, loginWithGoogle, connectLastFm } = useAuth();
+    const logoSrc = `${process.env.PUBLIC_URL}/branding/signal-vinyl/primary/signal-vinyl-primary-128.png`;
     const [error, setError] = useState('');
     const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -36,11 +36,11 @@ export default function LoginPage() {
         return (
             <div className="login-page">
                 <div className="login-card">
-                    <img src={logo} className="login-logo" alt="Scrozam" />
+                    <img src={logoSrc} className="login-logo" alt="Scrozam" />
                     <h1 className="login-title">One more step</h1>
                     <p className="login-subtitle">
-                        Connect your <strong>Last.fm</strong> account so Scrozam can
-                        scrobble tracks on your behalf.
+                        Connect your <strong>Last.fm</strong> account to turn live
+                        detections into instant scrobbles.
                     </p>
 
                     <div className="login-user-info">
@@ -58,7 +58,7 @@ export default function LoginPage() {
                     </button>
 
                     <p className="login-footer">
-                        You'll be redirected to Last.fm to authorise Scrozam.
+                        You&apos;ll be redirected to Last.fm to authorize Scrozam.
                     </p>
                 </div>
             </div>
@@ -69,11 +69,10 @@ export default function LoginPage() {
     return (
         <div className="login-page">
             <div className="login-card">
-                <img src={logo} className="login-logo" alt="Scrozam" />
-                <h1 className="login-title">Welcome to Scrozam</h1>
+                <img src={logoSrc} className="login-logo" alt="Scrozam" />
+                <h1 className="login-title">Welcome to Scrozam!</h1>
                 <p className="login-subtitle">
-                    Identify songs around you and scrobble them to&nbsp;Last.fm
-                    automatically.
+                    Hear it. Catch it. Scrobble it.
                 </p>
 
                 {error && <p className="login-error">{error}</p>}

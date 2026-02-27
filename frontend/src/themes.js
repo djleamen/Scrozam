@@ -8,21 +8,21 @@
 export const THEMES = {
   midnight: {
     label: 'Midnight',
-    swatch: '#1e1e2f',
-    bgStart: '#1e1e2f',
-    bgEnd: '#2a2d3a',
-    accent: '#ff3131',
-    accentLight: '#ff6b6b',
-    accentRgb: '255, 49, 49',
+    swatch: '#0B0C14',
+    bgStart: '#0B0C14',
+    bgEnd: '#141827',
+    accent: '#E80922',
+    accentLight: '#FF3B52',
+    accentRgb: '232, 9, 34',
   },
   crimson: {
     label: 'Crimson',
     swatch: '#2d0f0f',
     bgStart: '#1a0808',
     bgEnd: '#2d1010',
-    accent: '#ff3131',
-    accentLight: '#ff7070',
-    accentRgb: '255, 49, 49',
+    accent: '#E80922',
+    accentLight: '#FF3B52',
+    accentRgb: '232, 9, 34',
   },
   ocean: {
     label: 'Ocean',
@@ -97,7 +97,7 @@ export const FONTS = {
  */
 export function applyCSSVars(themeKey, fontKey) {
   const theme = THEMES[themeKey] || THEMES.midnight;
-  const font  = FONTS[fontKey]   || FONTS.segoe;
+  const font  = FONTS[fontKey]   || FONTS.inter;
   const root  = document.documentElement;
 
   root.style.setProperty('--bg-start',      theme.bgStart);
