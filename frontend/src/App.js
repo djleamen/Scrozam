@@ -124,9 +124,18 @@ function MainApp() {
 
   // Poll for detected songs every 3 seconds
   useEffect(() => {
+    // Don't flag the orbit on every failed poll; only react once the
+    // backend looks genuinely unreachable, then keep retrying quietly.
+    const MAX_CONSECUTIVE_POLL_ERRORS = 5;
+    let consecutivePollErrors = 0;
+
     const fetchTrack = async () => {
       try {
         const response = await authFetch(`${backendUrl}/detected-song`);
+        if (!response.ok) {
+          throw new Error(`Polling failed with status ${response.status}`);
+        }
+        consecutivePollErrors = 0;
         const data = await response.json();
 
         if (data?.title && data?.artist) {
@@ -141,8 +150,11 @@ function MainApp() {
           }
         }
       } catch (error) {
+        consecutivePollErrors += 1;
         console.error('Error fetching detected song:', error);
-        flashOrbitState('error', 700);
+        if (consecutivePollErrors === MAX_CONSECUTIVE_POLL_ERRORS) {
+          flashOrbitState('error', 2000);
+        }
       }
     };
 
