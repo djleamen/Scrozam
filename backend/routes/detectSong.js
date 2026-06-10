@@ -81,7 +81,9 @@ router.post('/', upload.single('sample'), async (req, res) => {
     });
 
     if (response.data.status.code === 0) {
-      const musicData = response.data.metadata.music[0];
+      // Guard the whole chain: a success status can still come back without
+      // a metadata.music array, which previously threw and surfaced as a 500.
+      const musicData = response.data.metadata?.music?.[0];
       if (!musicData?.title || !musicData?.artists?.[0]?.name) {
         return res.status(502).send('Song metadata incomplete from detection service');
       }
