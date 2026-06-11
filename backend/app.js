@@ -168,7 +168,22 @@ app.use((err, req, res, next) => {
     if (err && err.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).json({ error: 'Audio file is too large' });
     }
+    if (err && err.type === 'entity.parse.failed') {
+        return res.status(400).json({ error: 'Invalid JSON in request body' });
+    }
+    if (err && err.type === 'entity.too.large') {
+        return res.status(413).json({ error: 'Request body is too large' });
+    }
     return next(err);
+});
+
+// Final JSON error handler — never leak stack traces as HTML
+app.use((err, req, res, next) => {
+    if (res.headersSent) {
+        return next(err);
+    }
+    console.error('Unhandled error:', err);
+    return res.status(err.status || 500).json({ error: 'Internal server error' });
 });
 
 app.listen(PORT, () => {
