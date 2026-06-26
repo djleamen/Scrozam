@@ -221,6 +221,19 @@ router.get('/proxy', async (req, res) => {
 
     res.setHeader('Content-Type', imageRes.headers['content-type'] || 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400'); // cache 24h in browser
+
+    // Guard against the upstream stream erroring out mid-pipe (e.g. CDN
+    // connection drop). Without this listener the 'error' event is unhandled
+    // and crashes the process while the client hangs.
+    imageRes.data.on('error', (error) => {
+      console.error('Image proxy stream error:', error.message);
+      if (!res.headersSent) {
+        res.status(502).send('Failed to fetch image');
+      } else {
+        res.destroy(error);
+      }
+    });
+
     imageRes.data.pipe(res);
   } catch (error) {
     console.error('Image proxy error:', error.message);
