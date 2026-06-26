@@ -11,6 +11,8 @@ const router = express.Router();
 
 const API_KEY = process.env.LAST_API_KEY;
 
+const PROXY_ERROR_MESSAGE = 'Failed to fetch image';
+
 const extractLargestImage = (images) => {
   /**
    * Helper function to extract the largest image URL from Last.fm image array.
@@ -219,8 +221,11 @@ router.get('/proxy', async (req, res) => {
       timeout: 10000,
     });
 
-    res.setHeader('Content-Type', imageRes.headers['content-type'] || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // cache 24h in browser
+    const imageHeaders = {
+      'Content-Type': imageRes.headers['content-type'] || 'image/jpeg',
+      'Cache-Control': 'public, max-age=86400', // cache 24h in browser
+    };
+    res.set(imageHeaders);
 
     // Guard against the upstream stream erroring out mid-pipe (e.g. CDN
     // connection drop). Without this listener the 'error' event is unhandled
@@ -231,16 +236,15 @@ router.get('/proxy', async (req, res) => {
         res.destroy(streamError);
       } else {
         // Drop the image headers so the 502 isn't served (and cached) as an image.
-        res.removeHeader('Content-Type');
-        res.removeHeader('Cache-Control');
-        res.status(502).send('Failed to fetch image');
+        Object.keys(imageHeaders).forEach((header) => res.removeHeader(header));
+        res.status(502).send(PROXY_ERROR_MESSAGE);
       }
     });
 
     imageRes.data.pipe(res);
   } catch (error) {
     console.error('Image proxy error:', error.message);
-    res.status(502).send('Failed to fetch image');
+    res.status(502).send(PROXY_ERROR_MESSAGE);
   }
 });
 
