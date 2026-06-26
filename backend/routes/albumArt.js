@@ -225,12 +225,15 @@ router.get('/proxy', async (req, res) => {
     // Guard against the upstream stream erroring out mid-pipe (e.g. CDN
     // connection drop). Without this listener the 'error' event is unhandled
     // and crashes the process while the client hangs.
-    imageRes.data.on('error', (error) => {
-      console.error('Image proxy stream error:', error.message);
-      if (!res.headersSent) {
-        res.status(502).send('Failed to fetch image');
+    imageRes.data.once('error', (streamError) => {
+      console.error('Image proxy stream error:', streamError.message);
+      if (res.headersSent) {
+        res.destroy(streamError);
       } else {
-        res.destroy(error);
+        // Drop the image headers so the 502 isn't served (and cached) as an image.
+        res.removeHeader('Content-Type');
+        res.removeHeader('Cache-Control');
+        res.status(502).send('Failed to fetch image');
       }
     });
 
