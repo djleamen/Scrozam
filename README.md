@@ -1,4 +1,4 @@
-# Scrozam!
+# Scrozam
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Frontend](https://img.shields.io/badge/frontend-React-61DAFB?logo=react)
@@ -13,6 +13,7 @@
 <img width="1512" height="862" alt="Screenshot 2026-02-26 at 10 11 48 PM" src="https://github.com/user-attachments/assets/7622d50f-e76d-4864-a1ee-14a055d14a2f" />
 
 ## Features
+
 - **Google SSO** — sign in with your Google account; no password required.
 - **Last.fm OAuth** — connect your Last.fm account in-app; no manual session key steps.
 - Detects songs from audio input using ACRCloud.
@@ -23,6 +24,7 @@
 ## Setup Instructions
 
 ### Prerequisites
+
 - Node.js and npm installed on your machine.
 - ACRCloud and Last.fm API accounts.
 - A Google Cloud project with an OAuth 2.0 Web Client ID ([create one here](https://console.cloud.google.com/)).
@@ -38,6 +40,7 @@
 2. **Add environment variables**
 
    Create a `.env` file in the `backend` directory (see `backend/.env.example`):
+
    ```env
    ACR_URL="your_acrcloud_url"
    ACR_ACCESS_KEY="your_acr_access_key"
@@ -52,17 +55,20 @@
    ```
 
    Create a `.env` file in the `frontend` directory (see `frontend/.env.example`):
+
    ```env
    REACT_APP_GOOGLE_CLIENT_ID="your_google_oauth_client_id.apps.googleusercontent.com"
    ```
 
 3. **Configure your Last.fm app callback**
    - In your [Last.fm API account settings](https://www.last.fm/api/accounts), set the callback URL to:
-     ```
+
+     ```plaintext
      http://localhost:3000/auth/lastfm/callback
      ```
 
 4. **Start the backend server**
+
    ```bash
    cd backend
    npm install
@@ -70,15 +76,17 @@
    ```
 
 5. **Start the frontend**
+
    ```bash
    cd frontend
    npm install
    npm start
    ```
+
    Type `y` if prompted to use port 3001.
 
 6. **Sign in**
-   - Open http://localhost:3001.
+   - Open <http://localhost:3001>.
    - Click **Sign in with Google**.
    - After Google authentication, click **Connect Last.fm** and authorise Scrozam.
    - You're now fully signed in and ready to scrobble.
@@ -89,7 +97,8 @@
    - Enable **Continuous Listening Mode** to auto-detect song changes without stopping.
 
 Sample backend output:
-```
+
+```plaintext
 ACRCloud Response: { ... }
 Full music data from ACRCloud: { ... }
 Detected Song -> Title: Killah, Artist: Lady Gaga
@@ -100,7 +109,8 @@ Detected Song -> Title: Killah, Artist: Lady Gaga
 ```
 
 To avoid duplication, if the same song is detected you will see:
-```
+
+```plaintext
 📭 No new song detected, returning null.
 ```
 
@@ -108,7 +118,7 @@ To avoid duplication, if the same song is detected you will see:
 <summary>It is normal to see the following when a song first switches:</summary>
 <br>
 
-```
+```plaintext
 ACRCloud Response: { status: { code: 1001, version: '1.0', msg: 'No result' } }
 No result detected. Retrying...
 📭 No new song detected, returning null.
@@ -133,7 +143,7 @@ The song **will** update eventually, usually well before the midpoint of the cur
 
 ### Project Structure
 
-```
+```plaintext
 backend/
   app.js              — Express server, session & auth middleware
   userStore.js        — In-memory user profiles & Last.fm session keys
