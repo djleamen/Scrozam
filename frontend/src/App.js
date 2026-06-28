@@ -51,6 +51,14 @@ function MainApp() {
 
   const orbitState = transientOrbitState || (isListening ? 'listening' : 'ready');
 
+  // Empty-state copy for the album canvas. When a track is already detected
+  // but has no artwork, say so — don't tell the user to press Start again.
+  const emptyArtMessage = trackInfo
+    ? 'No artwork for this track'
+    : isListening
+      ? 'Listening for music…'
+      : 'Press Start to detect what’s playing';
+
   const fetchAlbumArt = useCallback(async (artist, title) => {
     /**
      * Fetches album art from the backend for the given artist and title.
@@ -63,6 +71,9 @@ function MainApp() {
     }
 
     console.log(`🎨 Fetching album art for: ${artist} - ${title}`);
+    // Clear any artwork from the previous track so we never show stale art
+    // (or an alt text that no longer matches) while the new fetch is in flight.
+    setAlbumArt(null);
     setAlbumArtLoading(true);
 
     try {
@@ -255,7 +266,7 @@ function MainApp() {
         </div>
         <img src={user.picture} alt={user.name} className="user-avatar" />
         <span className="user-name">{user.name}</span>
-        <span className="lastfm-badge">🎵 Last.fm connected</span>
+        <span className="lastfm-badge">Last.fm connected</span>
         <SettingsDropdown />
         <button className="logout-btn" onClick={logout}>Sign out</button>
       </div>
@@ -280,7 +291,7 @@ function MainApp() {
             {!albumArtLoading && !albumArt && (
               <div className="album-art-placeholder album-art-empty">
                 <img src={recordMarkSrc} alt="" className="album-art-mark" aria-hidden="true" />
-                <span>{isListening ? 'Listening for music…' : 'Press Start — your detected track shows up here'}</span>
+                <span>{emptyArtMessage}</span>
               </div>
             )}
           </div>
@@ -316,11 +327,11 @@ function MainApp() {
 
           <div className="button-group">
             <button onClick={handleStartListening} disabled={isListening}>
-              {isListening ? '🎧 Listening…' : '🎵 Start Listening'}
+              {isListening ? 'Listening…' : 'Start Listening'}
             </button>
             {isListening && (
               <button onClick={handleStopListening} className="stop-button">
-                ⏹️ Stop
+                Stop
               </button>
             )}
           </div>

@@ -53,7 +53,6 @@ export default function LoginPage() {
                     </div>
 
                     <button className="login-lastfm-btn" onClick={connectLastFm}>
-                        <span className="lastfm-icon">🎵</span>
                         Connect Last.fm
                     </button>
 
