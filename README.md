@@ -1,4 +1,4 @@
-# Scrozam
+# Scrozam!
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Frontend](https://img.shields.io/badge/frontend-React-61DAFB?logo=react)
