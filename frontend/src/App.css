@@ -211,176 +211,138 @@
   color: #fff;
 }
 
-/* ── Main authenticated layout ────────────────────────────────────────────── */
+/* ── Stage (single-focus authenticated layout) ────────────────────────────── */
 
-.music-layout {
-  width: min(1160px, 100% - 48px);
-  margin: 28px auto 42px;
-  display: grid;
-  grid-template-columns: minmax(340px, 1.05fr) minmax(340px, 0.95fr);
-  gap: 24px;
-  align-items: stretch;
-}
-
-.now-playing-panel,
-.control-panel {
-  background: #161a28;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-}
-
-.now-playing-panel {
-  padding: 24px;
+.stage {
+  width: min(560px, 100% - 40px);
+  margin: 0 auto;
+  padding: 56px 0 72px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-}
-
-.panel-head {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  text-align: center;
 }
 
-.panel-label {
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 0.75rem;
-  color: #b4b9cf;
-  font-family: 'Roboto Mono', 'Courier New', monospace;
+/* The record itself is the primary control: tap to listen, fills with art. */
+.stage-disc {
+  position: relative;
+  width: clamp(220px, 44vw, 300px);
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #07080e;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+              inset 0 0 70px rgba(0, 0, 0, 0.7);
+  transition: transform 0.18s ease;
 }
 
-.status-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(11, 12, 20, 0.5);
-  color: #d3d8ec;
-  font-size: 0.84rem;
-  padding: 8px 12px;
-  white-space: nowrap;
+.stage-disc:hover {
+  transform: scale(1.015);
 }
 
-.album-art-container {
-  border-radius: 12px;
-  overflow: hidden;
-  background: rgba(11, 12, 20, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.stage-disc:active {
+  transform: scale(0.99);
 }
 
-.album-art,
-.album-art-placeholder {
+.stage-disc.is-loading {
+  opacity: 0.78;
+}
+
+.stage-disc-art {
   width: 100%;
-  aspect-ratio: 1 / 1;
-}
-
-.album-art {
+  height: 100%;
   object-fit: cover;
+  border-radius: 50%;
   display: block;
 }
 
-.album-art-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  text-align: center;
-  color: #8087a3;
-  font-size: 0.95rem;
-  line-height: 1.5;
+.stage-disc-mark {
+  width: 66%;
+  height: 66%;
+  object-fit: contain;
 }
 
-.album-art-empty {
-  gap: 16px;
+/* Expanding ring while actively listening. */
+.stage-disc::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  pointer-events: none;
 }
 
-.album-art-mark {
-  width: 56px;
-  height: 56px;
-  opacity: 0.5;
+.stage-disc[data-state="success"]::after {
+  border-color: rgba(var(--accent-rgb), 0.7);
 }
 
-.track-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.stage-disc[data-state="error"]::after {
+  border-color: rgba(248, 113, 113, 0.7);
 }
 
-.track-title {
+.stage-track {
+  margin-top: 30px;
+  min-height: 64px;
+}
+
+.stage-title {
   margin: 0;
-  color: #f3f5ff;
-  font-size: 1.35rem;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
   font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  color: #f3f5ff;
 }
 
-.track-artist {
-  margin: 0;
+.stage-artist {
+  margin: 6px 0 0;
+  font-size: 1.05rem;
   color: #b4b9cf;
-  font-size: 1rem;
-  line-height: 1.4;
 }
 
-.control-panel {
-  padding: 32px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 20px;
-}
-
-.control-title {
+.stage-cta {
   margin: 0;
-  font-size: 1.5rem;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  font-weight: 700;
-  color: #f3f5ff;
+  font-size: 1.05rem;
+  color: #8087a3;
 }
 
-.toggle-container {
-  margin-top: 4px;
-}
-
-.mode-switch {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 12px;
+/* Continuous-mode toggle: compact, inline. */
+.continuous-toggle {
+  margin-top: 24px;
+  display: inline-flex;
   align-items: center;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(11, 12, 20, 0.56);
-  padding: 12px 14px;
+  gap: 10px;
+  color: #b4b9cf;
+  font-size: 0.9rem;
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
 }
 
-.mode-switch input[type="checkbox"] {
+.continuous-toggle input[type="checkbox"] {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
 
 .switch-track {
-  width: 44px;
-  height: 24px;
+  width: 40px;
+  height: 22px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.08);
   position: relative;
+  flex: 0 0 auto;
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .switch-thumb {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #f3f5ff;
   position: absolute;
@@ -389,72 +351,93 @@
   transition: transform 0.2s ease;
 }
 
-.mode-switch input[type="checkbox"]:checked + .switch-track {
-  background: rgba(var(--accent-rgb), 0.28);
+.continuous-toggle input[type="checkbox"]:checked + .switch-track {
+  background: rgba(var(--accent-rgb), 0.3);
   border-color: rgba(var(--accent-rgb), 0.8);
 }
 
-.mode-switch input[type="checkbox"]:checked + .switch-track .switch-thumb {
-  transform: translateX(20px);
-  background: #fff;
+.continuous-toggle input[type="checkbox"]:checked + .switch-track .switch-thumb {
+  transform: translateX(18px);
 }
 
-.mode-copy {
+/* Listening log. */
+.history {
+  width: 100%;
+  margin-top: 44px;
+  text-align: left;
+}
+
+.history-label {
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  color: #8087a3;
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+}
+
+.history-empty {
+  margin: 12px 0 0;
+  color: #8087a3;
+  font-size: 0.9rem;
+}
+
+.history-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.history-thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+.history-thumb--empty {
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.history-meta {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-}
-
-.mode-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #f3f5ff;
-}
-
-.mode-subtitle {
-  font-size: 0.8rem;
-  color: #8087a3;
-}
-
-.button-group {
-  display: flex;
-  width: 100%;
-  gap: 10px;
-}
-
-.button-group button {
-  border: none;
-  border-radius: 8px;
-  padding: 14px 18px;
-  min-height: 48px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  color: #ffffff;
+  min-width: 0;
   flex: 1;
 }
 
-.button-group button:first-child {
-  background: var(--accent);
+.history-track {
+  color: #f3f5ff;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.button-group button:first-child:hover:not(:disabled) {
-  background: var(--accent-light);
+.history-artist {
+  color: #8087a3;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.button-group button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.stop-button {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-}
-
-.stop-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+.history-time {
+  color: #8087a3;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
 }
 
 /* ── Orbit dot ────────────────────────────────────────────────────────────── */
@@ -734,27 +717,42 @@
   }
 }
 
-button:focus-visible,
-input:focus-visible,
-.mode-switch:focus-within {
-  outline: 2px solid rgba(var(--accent-rgb), 0.9);
-  outline-offset: 2px;
+/* The record spins and the ring pulses only while listening (brand rule:
+   continuous rotation must be tied to the listening state). */
+@keyframes discSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-@media (max-width: 980px) {
-  .music-layout {
-    width: min(100% - 28px, 760px);
-    grid-template-columns: 1fr;
+@keyframes discPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.22);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stage-disc[data-state="listening"] .stage-disc-art,
+  .stage-disc[data-state="listening"] .stage-disc-mark {
+    animation: discSpin 8s linear infinite;
   }
 
-  .control-panel,
-  .now-playing-panel {
-    padding: 22px;
+  .stage-disc[data-state="listening"]::after {
+    border-color: rgba(var(--accent-rgb), 0.55);
+    animation: discPulse 1.8s ease-out infinite;
   }
+}
 
-  .button-group {
-    flex-direction: column;
-  }
+button:focus-visible,
+input:focus-visible,
+.continuous-toggle:focus-within {
+  outline: 2px solid rgba(var(--accent-rgb), 0.9);
+  outline-offset: 2px;
 }
 
 @media (max-width: 760px) {
@@ -778,16 +776,15 @@ input:focus-visible,
     font-size: 0.76rem;
   }
 
-  .music-layout {
-    margin-top: 18px;
+  .stage {
+    padding-top: 36px;
   }
 
   .login-card {
     padding: 28px 20px;
-    border-radius: 18px;
   }
 
   .login-title {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
   }
 }
