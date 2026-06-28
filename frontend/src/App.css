@@ -327,46 +327,38 @@
   border-radius: 16px;
 }
 
+.album-art-empty {
+  gap: 16px;
+}
+
+.album-art-mark {
+  width: 64px;
+  height: 64px;
+  opacity: 0.6;
+}
+
 .track-info {
-  border-radius: 16px;
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(11, 12, 20, 0.5);
-}
-
-.track-info h2 {
-  margin: 0 0 14px;
-  color: #f3f5ff;
-  font-size: 1.1rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.track-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   border-left: 3px solid rgba(var(--accent-rgb), 0.85);
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 10px;
-  padding: 12px;
+  padding-left: 14px;
 }
 
-.track-detail + .track-detail {
-  margin-top: 10px;
-}
-
-.track-detail strong {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #b4b9cf;
-  font-family: 'Roboto Mono', 'Courier New', monospace;
-}
-
-.track-detail span {
+.track-title {
+  margin: 0;
   color: #f3f5ff;
-  font-size: 1.02rem;
-  line-height: 1.45;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.track-artist {
+  margin: 0;
+  color: #b4b9cf;
+  font-size: 1rem;
+  line-height: 1.4;
 }
 
 .control-panel {
@@ -377,11 +369,11 @@
   gap: 20px;
 }
 
-.main-title {
+.control-title {
   margin: 0;
-  font-size: clamp(2.1rem, 3.3vw, 3.4rem);
-  line-height: 1.05;
-  letter-spacing: -0.025em;
+  font-size: clamp(1.7rem, 2.6vw, 2.4rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   font-weight: 700;
   max-width: 16ch;
   background: linear-gradient(120deg, #f3f5ff 0%, var(--accent-light) 90%);
@@ -390,15 +382,8 @@
   background-clip: text;
 }
 
-.subtitle {
-  margin: 0;
-  color: #b4b9cf;
-  font-size: 1.08rem;
-  line-height: 1.65;
-}
-
 .toggle-container {
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .mode-switch {
@@ -469,13 +454,6 @@
   color: #8087a3;
 }
 
-.controls-section {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-}
-
 .button-group {
   display: flex;
   width: 100%;
@@ -519,14 +497,6 @@
 
 .stop-button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
-}
-
-.control-footnote {
-  margin: 0;
-  color: #8087a3;
-  font-size: 0.86rem;
-  line-height: 1.5;
-  font-family: 'Roboto Mono', 'Courier New', monospace;
 }
 
 /* ── Orbit dot ────────────────────────────────────────────────────────────── */

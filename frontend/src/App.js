@@ -21,6 +21,7 @@ function MainApp() {
    * both a Google session and a connected Last.fm account.
    */
   const { user, logout, authFetch, backendUrl } = useAuth();
+  const recordMarkSrc = `${process.env.PUBLIC_URL}/branding/signal-vinyl/primary/signal-vinyl-primary-128.png`;
 
   const [trackInfo, setTrackInfo] = useState(null);
   const [isListening, setIsListening] = useState(false);
@@ -265,50 +266,35 @@ function MainApp() {
             <p className="panel-label">Now Playing</p>
             <div className="status-indicator">
               <OrbitDot state={orbitState} size="xs" />
-              <span>{isListening ? 'Listening for music...' : 'Ready to listen'}</span>
+              <span>{isListening ? 'Listening…' : 'Ready to listen'}</span>
             </div>
           </div>
 
           <div className="album-art-container">
             {albumArtLoading && (
-              <div className="album-art-placeholder">Loading album art...</div>
+              <div className="album-art-placeholder">Loading album art…</div>
             )}
             {!albumArtLoading && albumArt && (
-              <img src={albumArt} alt="Album Art" className="album-art" />
+              <img src={albumArt} alt={trackInfo ? `${trackInfo.title} album art` : 'Album art'} className="album-art" />
             )}
             {!albumArtLoading && !albumArt && (
-              <div className="album-art-placeholder">Waiting for the first detected track</div>
+              <div className="album-art-placeholder album-art-empty">
+                <img src={recordMarkSrc} alt="" className="album-art-mark" aria-hidden="true" />
+                <span>{isListening ? 'Listening for music…' : 'Press Start — your detected track shows up here'}</span>
+              </div>
             )}
           </div>
 
-          <div className="track-info">
-            {trackInfo ? (
-              <>
-                <h2>Detected Track</h2>
-                <div className="track-detail">
-                  <strong>Title</strong>
-                  <span>{trackInfo.title}</span>
-                </div>
-                <div className="track-detail">
-                  <strong>Artist</strong>
-                  <span>{trackInfo.artist}</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2>Listening Queue</h2>
-                <div className="track-detail">
-                  <strong>Status</strong>
-                  <span>Start listening to capture your first song.</span>
-                </div>
-              </>
-            )}
-          </div>
+          {trackInfo && (
+            <div className="track-info">
+              <p className="track-title">{trackInfo.title}</p>
+              <p className="track-artist">{trackInfo.artist}</p>
+            </div>
+          )}
         </section>
 
         <section className="control-panel">
-          <h1 className="main-title">Hear it. Catch it. Scrobble it.</h1>
-          <p className="subtitle">Ambient sound to Last.fm, instantly.</p>
+          <h1 className="control-title">Detect what&apos;s playing</h1>
 
           <div className="toggle-container">
             <label className="mode-switch" htmlFor="continuousModeToggle">
@@ -328,21 +314,15 @@ function MainApp() {
             </label>
           </div>
 
-          <div className="controls-section">
-            <div className="button-group">
-              <button onClick={handleStartListening} disabled={isListening}>
-                {isListening ? '🎧 Listening...' : '🎵 Start Listening'}
+          <div className="button-group">
+            <button onClick={handleStartListening} disabled={isListening}>
+              {isListening ? '🎧 Listening…' : '🎵 Start Listening'}
+            </button>
+            {isListening && (
+              <button onClick={handleStopListening} className="stop-button">
+                ⏹️ Stop
               </button>
-              {isListening && (
-                <button onClick={handleStopListening} className="stop-button">
-                  ⏹️ Stop Listening
-                </button>
-              )}
-            </div>
-
-            <p className="control-footnote">
-              Scrozam detects tracks and scrobbles to Last.fm automatically.
-            </p>
+            )}
           </div>
         </section>
       </main>
