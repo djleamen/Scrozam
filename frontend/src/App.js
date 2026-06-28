@@ -53,11 +53,12 @@ function MainApp() {
 
   // Empty-state copy for the album canvas. When a track is already detected
   // but has no artwork, say so — don't tell the user to press Start again.
-  const emptyArtMessage = trackInfo
-    ? 'No artwork for this track'
-    : isListening
-      ? 'Listening for music…'
-      : 'Press Start to detect what’s playing';
+  let emptyArtMessage = 'Press Start to detect what’s playing';
+  if (trackInfo) {
+    emptyArtMessage = 'No artwork for this track';
+  } else if (isListening) {
+    emptyArtMessage = 'Listening for music…';
+  }
 
   const fetchAlbumArt = useCallback(async (artist, title) => {
     /**
