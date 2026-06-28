@@ -13,13 +13,24 @@ import SettingsDropdown from './components/SettingsDropdown';
 import OrbitDot from './components/OrbitDot';
 
 // Compact relative timestamp for the listening log ("now", "4m", "2h").
-function timeAgo(ts, now) {
+export function timeAgo(ts, now) {
   const seconds = Math.floor((now - ts) / 1000);
   if (seconds < 45) return 'now';
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${Math.max(1, minutes)}m`;
   const hours = Math.floor(minutes / 60);
   return `${hours}h`;
+}
+
+const HISTORY_LIMIT = 25;
+
+// Prepend a detected track to the session log. Consecutive repeats of the
+// same track are ignored, and the log is capped at HISTORY_LIMIT entries.
+export function appendToHistory(prev, artist, title, at) {
+  const key = `${artist}-${title}`;
+  if (prev[0]?.key === key) return prev;
+  const entry = { key, artist, title, art: null, at };
+  return [entry, ...prev].slice(0, HISTORY_LIMIT);
 }
 
 // ── Main app (only rendered when fully authenticated) ─────────────────────────
@@ -48,6 +59,7 @@ function MainApp() {
   const lastScrobbledTrack = useRef('');
   const lastAlbumArtTrack = useRef('');
   const lastPolledTrack = useRef(''); // tracks what the poll loop has already handled
+  const albumArtRequestId = useRef(0); // guards against out-of-order art responses
 
   const flashOrbitState = useCallback((state, duration = 500) => {
     if (orbitStateTimeoutRef.current) {
@@ -71,12 +83,7 @@ function MainApp() {
   // Append a freshly detected track to the session log (dedupe consecutive
   // repeats so a held track isn't logged on every poll).
   const addToHistory = useCallback((artist, title) => {
-    setHistory((prev) => {
-      const key = `${artist}-${title}`;
-      if (prev[0]?.key === key) return prev;
-      const entry = { key, artist, title, art: null, at: Date.now() };
-      return [entry, ...prev].slice(0, 25);
-    });
+    setHistory((prev) => appendToHistory(prev, artist, title, Date.now()));
   }, []);
 
   // Keep relative timestamps in the log fresh.
@@ -97,6 +104,11 @@ function MainApp() {
     }
 
     console.log(`🎨 Fetching album art for: ${artist} - ${title}`);
+    // Tag this request so out-of-order responses can't reintroduce stale art:
+    // only the most recent request is allowed to write album-art state.
+    const requestId = ++albumArtRequestId.current;
+    const isLatest = () => requestId === albumArtRequestId.current;
+
     // Clear any artwork from the previous track so we never show stale art
     // (or an alt text that no longer matches) while the new fetch is in flight.
     setAlbumArt(null);
@@ -111,7 +123,7 @@ function MainApp() {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.albumArt) {
+        if (data.albumArt && isLatest()) {
           setAlbumArt(data.albumArt);
           lastAlbumArtTrack.current = trackKey;
           // Backfill the matching log entry's thumbnail (reuses this fetch,
@@ -127,7 +139,7 @@ function MainApp() {
       console.error('Error fetching album art:', error);
     }
 
-    setAlbumArtLoading(false);
+    if (isLatest()) setAlbumArtLoading(false);
   }, [authFetch, backendUrl]);
 
   const handleNewTrack = useCallback(async (artist, title) => {
