@@ -12,6 +12,27 @@ import LoginPage from './components/LoginPage';
 import SettingsDropdown from './components/SettingsDropdown';
 import OrbitDot from './components/OrbitDot';
 
+// Compact relative timestamp for the listening log ("now", "4m", "2h").
+export function timeAgo(ts, now) {
+  const seconds = Math.floor((now - ts) / 1000);
+  if (seconds < 45) return 'now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${Math.max(1, minutes)}m`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h`;
+}
+
+const HISTORY_LIMIT = 25;
+
+// Prepend a detected track to the session log. Consecutive repeats of the
+// same track are ignored, and the log is capped at HISTORY_LIMIT entries.
+export function appendToHistory(prev, artist, title, at) {
+  const key = `${artist}-${title}`;
+  if (prev[0]?.key === key) return prev;
+  const entry = { key, artist, title, art: null, at };
+  return [entry, ...prev].slice(0, HISTORY_LIMIT);
+}
+
 // ── Main app (only rendered when fully authenticated) ─────────────────────────
 
 function MainApp() {
@@ -21,6 +42,7 @@ function MainApp() {
    * both a Google session and a connected Last.fm account.
    */
   const { user, logout, authFetch, backendUrl } = useAuth();
+  const recordMarkSrc = `${process.env.PUBLIC_URL}/branding/signal-vinyl/primary/signal-vinyl-primary-128.png`;
 
   const [trackInfo, setTrackInfo] = useState(null);
   const [isListening, setIsListening] = useState(false);
@@ -28,6 +50,8 @@ function MainApp() {
   const [albumArt, setAlbumArt] = useState(null);
   const [albumArtLoading, setAlbumArtLoading] = useState(false);
   const [transientOrbitState, setTransientOrbitState] = useState(null);
+  const [history, setHistory] = useState([]); // this session's detected tracks
+  const [now, setNow] = useState(() => Date.now());
 
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
@@ -35,6 +59,7 @@ function MainApp() {
   const lastScrobbledTrack = useRef('');
   const lastAlbumArtTrack = useRef('');
   const lastPolledTrack = useRef(''); // tracks what the poll loop has already handled
+  const albumArtRequestId = useRef(0); // guards against out-of-order art responses
 
   const flashOrbitState = useCallback((state, duration = 500) => {
     if (orbitStateTimeoutRef.current) {
@@ -50,6 +75,23 @@ function MainApp() {
 
   const orbitState = transientOrbitState || (isListening ? 'listening' : 'ready');
 
+  // Prompt shown under the disc before/while listening (a detected track
+  // replaces it with the title + artist).
+  let discPrompt = 'Tap the record to listen';
+  if (isListening) discPrompt = 'Listening… tap to stop';
+
+  // Append a freshly detected track to the session log (dedupe consecutive
+  // repeats so a held track isn't logged on every poll).
+  const addToHistory = useCallback((artist, title) => {
+    setHistory((prev) => appendToHistory(prev, artist, title, Date.now()));
+  }, []);
+
+  // Keep relative timestamps in the log fresh.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
   const fetchAlbumArt = useCallback(async (artist, title) => {
     /**
      * Fetches album art from the backend for the given artist and title.
@@ -62,6 +104,14 @@ function MainApp() {
     }
 
     console.log(`🎨 Fetching album art for: ${artist} - ${title}`);
+    // Tag this request so out-of-order responses can't reintroduce stale art:
+    // only the most recent request is allowed to write album-art state.
+    const requestId = ++albumArtRequestId.current;
+    const isLatest = () => requestId === albumArtRequestId.current;
+
+    // Clear any artwork from the previous track so we never show stale art
+    // (or an alt text that no longer matches) while the new fetch is in flight.
+    setAlbumArt(null);
     setAlbumArtLoading(true);
 
     try {
@@ -73,9 +123,14 @@ function MainApp() {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.albumArt) {
+        if (data.albumArt && isLatest()) {
           setAlbumArt(data.albumArt);
           lastAlbumArtTrack.current = trackKey;
+          // Backfill the matching log entry's thumbnail (reuses this fetch,
+          // no extra request).
+          setHistory((prev) =>
+            prev.map((e) => (e.key === trackKey && !e.art ? { ...e, art: data.albumArt } : e))
+          );
         }
       } else {
         console.error('Failed to fetch album art:', response.status);
@@ -84,7 +139,7 @@ function MainApp() {
       console.error('Error fetching album art:', error);
     }
 
-    setAlbumArtLoading(false);
+    if (isLatest()) setAlbumArtLoading(false);
   }, [authFetch, backendUrl]);
 
   const handleNewTrack = useCallback(async (artist, title) => {
@@ -145,6 +200,7 @@ function MainApp() {
           // Only fetch art / scrobble once per unique track (don't call inside setState)
           if (trackKey !== lastPolledTrack.current) {
             lastPolledTrack.current = trackKey;
+            addToHistory(data.artist, data.title);
             fetchAlbumArt(data.artist, data.title);
             handleNewTrack(data.artist, data.title);
           }
@@ -160,7 +216,7 @@ function MainApp() {
 
     const interval = setInterval(fetchTrack, 3000);
     return () => clearInterval(interval);
-  }, [authFetch, backendUrl, fetchAlbumArt, handleNewTrack, flashOrbitState]);
+  }, [authFetch, backendUrl, fetchAlbumArt, handleNewTrack, flashOrbitState, addToHistory]);
 
   const stopStream = useCallback(() => {
     setIsListening(false);
@@ -208,6 +264,7 @@ function MainApp() {
 
             const songData = await response.json();
             setTrackInfo(songData);
+            addToHistory(songData.artist, songData.title);
             fetchAlbumArt(songData.artist, songData.title);
 
             if (continuousListening) setTimeout(startRecording, 500);
@@ -254,96 +311,78 @@ function MainApp() {
         </div>
         <img src={user.picture} alt={user.name} className="user-avatar" />
         <span className="user-name">{user.name}</span>
-        <span className="lastfm-badge">🎵 Last.fm connected</span>
+        <span className="lastfm-badge">Last.fm connected</span>
         <SettingsDropdown />
         <button className="logout-btn" onClick={logout}>Sign out</button>
       </div>
 
-      <main className="music-layout">
-        <section className="now-playing-panel" aria-live="polite">
-          <div className="panel-head">
-            <p className="panel-label">Now Playing</p>
-            <div className="status-indicator">
-              <OrbitDot state={orbitState} size="xs" />
-              <span>{isListening ? 'Listening for music...' : 'Ready to listen'}</span>
-            </div>
-          </div>
+      <main className="stage">
+        <button
+          type="button"
+          className={`stage-disc${albumArtLoading ? ' is-loading' : ''}`}
+          data-state={orbitState}
+          onClick={isListening ? handleStopListening : handleStartListening}
+          aria-label={isListening ? 'Stop listening' : 'Start listening'}
+        >
+          {albumArt ? (
+            <img
+              className="stage-disc-art"
+              src={albumArt}
+              alt={trackInfo ? `${trackInfo.title} album art` : 'Album art'}
+            />
+          ) : (
+            <img className="stage-disc-mark" src={recordMarkSrc} alt="" aria-hidden="true" />
+          )}
+        </button>
 
-          <div className="album-art-container">
-            {albumArtLoading && (
-              <div className="album-art-placeholder">Loading album art...</div>
-            )}
-            {!albumArtLoading && albumArt && (
-              <img src={albumArt} alt="Album Art" className="album-art" />
-            )}
-            {!albumArtLoading && !albumArt && (
-              <div className="album-art-placeholder">Waiting for the first detected track</div>
-            )}
-          </div>
+        <div className="stage-track" aria-live="polite">
+          {trackInfo ? (
+            <>
+              <h1 className="stage-title">{trackInfo.title}</h1>
+              <p className="stage-artist">{trackInfo.artist}</p>
+            </>
+          ) : (
+            <p className="stage-cta">{discPrompt}</p>
+          )}
+        </div>
 
-          <div className="track-info">
-            {trackInfo ? (
-              <>
-                <h2>Detected Track</h2>
-                <div className="track-detail">
-                  <strong>Title</strong>
-                  <span>{trackInfo.title}</span>
-                </div>
-                <div className="track-detail">
-                  <strong>Artist</strong>
-                  <span>{trackInfo.artist}</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2>Listening Queue</h2>
-                <div className="track-detail">
-                  <strong>Status</strong>
-                  <span>Start listening to capture your first song.</span>
-                </div>
-              </>
-            )}
-          </div>
-        </section>
+        <label className="continuous-toggle" htmlFor="continuousModeToggle">
+          <input
+            id="continuousModeToggle"
+            type="checkbox"
+            checked={continuousListening}
+            onChange={(e) => setContinuousListening(e.target.checked)}
+          />
+          <span className="switch-track" aria-hidden="true">
+            <span className="switch-thumb" />
+          </span>
+          <span>Keep listening between songs</span>
+        </label>
 
-        <section className="control-panel">
-          <h1 className="main-title">Hear it. Catch it. Scrobble it.</h1>
-          <p className="subtitle">Ambient sound to Last.fm, instantly.</p>
-
-          <div className="toggle-container">
-            <label className="mode-switch" htmlFor="continuousModeToggle">
-              <input
-                id="continuousModeToggle"
-                type="checkbox"
-                checked={continuousListening}
-                onChange={(e) => setContinuousListening(e.target.checked)}
-              />
-              <span className="switch-track" aria-hidden="true">
-                <span className="switch-thumb" />
-              </span>
-              <span className="mode-copy">
-                <span className="mode-title">Continuous Mode</span>
-                <span className="mode-subtitle">Keep listening between detections</span>
-              </span>
-            </label>
-          </div>
-
-          <div className="controls-section">
-            <div className="button-group">
-              <button onClick={handleStartListening} disabled={isListening}>
-                {isListening ? '🎧 Listening...' : '🎵 Start Listening'}
-              </button>
-              {isListening && (
-                <button onClick={handleStopListening} className="stop-button">
-                  ⏹️ Stop Listening
-                </button>
-              )}
-            </div>
-
-            <p className="control-footnote">
-              Scrozam detects tracks and scrobbles to Last.fm automatically.
-            </p>
-          </div>
+        <section className="history" aria-label="Recently caught tracks">
+          <p className="history-label">Recently caught</p>
+          {history.length === 0 ? (
+            <p className="history-empty">Songs you catch this session show up here.</p>
+          ) : (
+            <ul className="history-list">
+              {history.map((h) => (
+                <li className="history-row" key={`${h.key}-${h.at}`}>
+                  {h.art ? (
+                    <img className="history-thumb" src={h.art} alt="" aria-hidden="true" />
+                  ) : (
+                    <span className="history-thumb history-thumb--empty" aria-hidden="true">
+                      <OrbitDot state="idle" size="sm" />
+                    </span>
+                  )}
+                  <span className="history-meta">
+                    <span className="history-track">{h.title}</span>
+                    <span className="history-artist">{h.artist}</span>
+                  </span>
+                  <span className="history-time">{timeAgo(h.at, now)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </main>
     </div>
