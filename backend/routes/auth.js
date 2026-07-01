@@ -37,7 +37,7 @@ router.post('/google', async (req, res) => {
     // Guard against non-string or oversized payloads before hitting Google.
     // Valid Google ID tokens are compact JWTs (three dot-separated segments,
     // well under 4KB); anything else is rejected without a network round-trip.
-    if (typeof credential !== 'string' || credential.length > 4096) {
+    if (typeof credential !== 'string' || Buffer.byteLength(credential, 'utf8') > 4096) {
         return res.status(400).json({ error: 'Invalid Google credential' });
     }
 
