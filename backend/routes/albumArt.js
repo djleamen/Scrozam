@@ -219,6 +219,12 @@ router.get('/proxy', async (req, res) => {
         'User-Agent': 'Mozilla/5.0',
       },
       timeout: 10000,
+      // The host allowlist above only vets the initial URL. axios follows
+      // redirects by default, so an allowed host answering with a 3xx could
+      // send us to an internal/arbitrary address and defeat the allowlist
+      // (SSRF). Refuse to follow redirects; a 3xx then rejects into the
+      // catch below and is served as a 502.
+      maxRedirects: 0,
     });
 
     const imageHeaders = {
