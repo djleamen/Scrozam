@@ -107,9 +107,6 @@ router.post('/', upload.single('sample'), async (req, res) => {
       res.status(500).send('Song detection failed');
     }
   } catch (error) {
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).send('Audio file is too large');
-    }
     console.error('Error detecting song:', error.response?.status || error.message);
     res.status(500).send('Error detecting song');
   }

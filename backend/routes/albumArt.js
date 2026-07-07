@@ -112,6 +112,11 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Artist and title are required' });
   }
 
+  if (typeof artist !== 'string' || typeof title !== 'string' ||
+      artist.length > 512 || title.length > 512) {
+    return res.status(400).json({ error: 'Artist and title must be strings of at most 512 characters' });
+  }
+
   if (!API_KEY) {
     return res.status(500).json({ error: 'Last.fm API key not configured' });
   }
