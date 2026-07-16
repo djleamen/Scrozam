@@ -21,6 +21,11 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
+// Warn once at startup (not per request) when audience verification is disabled.
+if (!GOOGLE_CLIENT_ID) {
+    console.warn('⚠️  GOOGLE_CLIENT_ID is not set — Google ID token audience verification is disabled. Set it to harden Google SSO.');
+}
+
 // ─── Google SSO ───────────────────────────────────────────────────────────────
 
 /**
@@ -56,17 +61,13 @@ router.post('/google', async (req, res) => {
         }
 
         // Google's tokeninfo endpoint validates the token's signature and expiry,
-        // but not that it was issued for *this* app. Without an audience check, a
-        // valid ID token minted for any other Google OAuth client could be replayed
-        // here to mint a Scrozam session as that user (audience confusion). Reject
-        // anything whose `aud` does not match our own client ID.
-        if (GOOGLE_CLIENT_ID) {
-            if (aud !== GOOGLE_CLIENT_ID) {
-                console.warn('⚠️  Rejected Google sign-in: token audience did not match GOOGLE_CLIENT_ID.');
-                return res.status(401).json({ error: 'Invalid Google token' });
-            }
-        } else {
-            console.warn('⚠️  GOOGLE_CLIENT_ID is not set — skipping audience verification. Set it to harden Google SSO.');
+        // but not that it was issued for *this* app. Reject any token whose `aud`
+        // does not match our own client ID (audience confusion / token substitution).
+        // When GOOGLE_CLIENT_ID is unset, verification is skipped — see the startup
+        // warning above.
+        if (GOOGLE_CLIENT_ID && aud !== GOOGLE_CLIENT_ID) {
+            console.warn('⚠️  Rejected Google sign-in: token audience did not match GOOGLE_CLIENT_ID.');
+            return res.status(401).json({ error: 'Invalid Google token' });
         }
 
         const user = upsertUser(sub, { email, name, picture });
@@ -188,7 +189,6 @@ router.get('/lastfm/callback', async (req, res) => {
 });
 
 // ─── Personalization ──────────────────────────────────────────────────────────
-
 const VALID_THEMES = ['midnight', 'crimson', 'ocean', 'forest', 'sunset', 'aurora'];
 const VALID_FONTS  = ['segoe', 'inter', 'mono', 'georgia', 'playfair'];
 
