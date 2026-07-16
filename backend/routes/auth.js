@@ -18,7 +18,13 @@ const LAST_API_KEY = process.env.LAST_API_KEY;
 const LAST_SHARED_SECRET = process.env.LAST_SHARED_SECRET;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Warn once at startup (not per request) when audience verification is disabled.
+if (!GOOGLE_CLIENT_ID) {
+    console.warn('⚠️  GOOGLE_CLIENT_ID is not set — Google ID token audience verification is disabled. Set it to harden Google SSO.');
+}
 
 // ─── Google SSO ───────────────────────────────────────────────────────────────
 
@@ -48,9 +54,19 @@ router.post('/google', async (req, res) => {
             timeout: 10000,
         });
 
-        const { sub, email, name, picture } = googleRes.data;
+        const { aud, sub, email, name, picture } = googleRes.data;
 
         if (!sub) {
+            return res.status(401).json({ error: 'Invalid Google token' });
+        }
+
+        // Google's tokeninfo endpoint validates the token's signature and expiry,
+        // but not that it was issued for *this* app. Reject any token whose `aud`
+        // does not match our own client ID (audience confusion / token substitution).
+        // When GOOGLE_CLIENT_ID is unset, verification is skipped — see the startup
+        // warning above.
+        if (GOOGLE_CLIENT_ID && aud !== GOOGLE_CLIENT_ID) {
+            console.warn('⚠️  Rejected Google sign-in: token audience did not match GOOGLE_CLIENT_ID.');
             return res.status(401).json({ error: 'Invalid Google token' });
         }
 
@@ -173,7 +189,6 @@ router.get('/lastfm/callback', async (req, res) => {
 });
 
 // ─── Personalization ──────────────────────────────────────────────────────────
-
 const VALID_THEMES = ['midnight', 'crimson', 'ocean', 'forest', 'sunset', 'aurora'];
 const VALID_FONTS  = ['segoe', 'inter', 'mono', 'georgia', 'playfair'];
 
