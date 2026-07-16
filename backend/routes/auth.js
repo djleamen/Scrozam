@@ -62,7 +62,7 @@ router.post('/google', async (req, res) => {
         // anything whose `aud` does not match our own client ID.
         if (GOOGLE_CLIENT_ID) {
             if (aud !== GOOGLE_CLIENT_ID) {
-                console.warn(`⚠️  Rejected Google token with mismatched aud: ${aud}`);
+                console.warn('⚠️  Rejected Google sign-in: token audience did not match GOOGLE_CLIENT_ID.');
                 return res.status(401).json({ error: 'Invalid Google token' });
             }
         } else {
