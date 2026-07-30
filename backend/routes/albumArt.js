@@ -47,7 +47,8 @@ const fetchAlbumInfo = async (artist, albumName) => {
         artist: artist,
         album: albumName,
         format: 'json'
-      }
+      },
+      timeout: 10000
     });
 
     if (response.data.album?.image) {
@@ -73,7 +74,8 @@ const fetchArtistInfo = async (artist) => {
         api_key: API_KEY,
         artist: artist,
         format: 'json'
-      }
+      },
+      timeout: 10000
     });
 
     if (response.data.artist?.image) {
@@ -128,7 +130,8 @@ router.post('/', async (req, res) => {
     const tryTrackInfo = async (trackTitle) => {
       try {
         const trackResponse = await axios.get('https://ws.audioscrobbler.com/2.0/', {
-          params: { method: 'track.getInfo', api_key: API_KEY, artist, track: trackTitle, format: 'json' }
+          params: { method: 'track.getInfo', api_key: API_KEY, artist, track: trackTitle, format: 'json' },
+          timeout: 10000
         });
         const track = trackResponse.data.track;
         if (!track) return null;

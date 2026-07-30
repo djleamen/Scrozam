@@ -169,6 +169,7 @@ router.get('/lastfm/callback', async (req, res) => {
         const response = await axios.get('https://ws.audioscrobbler.com/2.0/', {
             params: { ...params, api_sig, format: 'json' },
             family: 4,
+            timeout: 10000,
         });
 
         const sessionKey = response.data?.session?.key;
