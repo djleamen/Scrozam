@@ -95,8 +95,8 @@ router.post('/', upload.single('sample'), async (req, res) => {
       // Log what’s being sent back to the frontend
       console.log(`Detected Song -> Title: ${title}, Artist: ${artist}`);
     
-      // Store in songStore (no HTTP round-trip needed)
-      setDetectedSong({ title, artist });
+      // Store in songStore, keyed by user so concurrent users don't collide
+      setDetectedSong(req.session.userId, { title, artist });
       console.log(`Stored detected song: ${title} by ${artist}`);
       res.json({ title, artist });
     } else if (response.data.status.code === 1001) {
