@@ -17,7 +17,7 @@ const assert = require('node:assert');
 const originalLog = console.log;
 console.log = () => {};
 
-const { setDetectedSong, popDetectedSong } = require('./songStore');
+const { setDetectedSong, popDetectedSong, entryCount } = require('./songStore');
 
 const ENTRY_TTL_MS = 5 * 60 * 1000;
 const SONG = { title: 'Bohemian Rhapsody', artist: 'Queen' };
@@ -79,9 +79,17 @@ test('a later write prunes another user\'s expired entry', () => {
     withClock(1000, (advance) => {
         setDetectedSong('user-a', SONG);
         advance(ENTRY_TTL_MS + 1);
-        // user-b writing after user-a expired should prune user-a.
+        // user-a is expired but still physically present until a write prunes it.
+        assert.strictEqual(entryCount(), 1);
+        // user-b writing prunes the expired user-a entry rather than growing the
+        // map, so the count stays at 1 instead of climbing to 2. Asserting the
+        // count (not just a null pop) is what actually exercises prune-on-write:
+        // a null pop alone would pass even if pruning never ran.
         setDetectedSong('user-b', { title: 'Africa', artist: 'Toto' });
+        assert.strictEqual(entryCount(), 1);
+        // user-a is genuinely gone, not merely treated as absent on read.
         assert.strictEqual(popDetectedSong('user-a'), null);
+        popDetectedSong('user-b');
     });
 });
 
