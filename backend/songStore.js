@@ -60,4 +60,14 @@ function popDetectedSong(userId) {
     return entry.song;
 }
 
-module.exports = { setDetectedSong, popDetectedSong };
+/**
+ * Returns the number of entries currently held, including any that have
+ * expired but not yet been pruned. Exposed for tests and introspection so
+ * the map's bounded-memory guarantee can be asserted directly.
+ * @returns {number}
+ */
+function entryCount() {
+    return detectedSongs.size;
+}
+
+module.exports = { setDetectedSong, popDetectedSong, entryCount };
