@@ -32,9 +32,17 @@ function saveStore() {
     // Write to a temp file first, then rename into place. rename() is atomic on
     // the same filesystem, so a crash/redeploy mid-write can never leave a
     // truncated users.json that would wipe every user's Last.fm session key.
+    // (A hard crash between the write and the rename can leave a stale *.tmp
+    // file behind; it's harmless and the next successful save replaces the
+    // store regardless.)
     const tmpPath = `${STORE_PATH}.${process.pid}.tmp`;
     try {
         fs.writeFileSync(tmpPath, JSON.stringify(users, null, 2), 'utf8');
+        // Preserve the existing file's permissions so the rename doesn't reset
+        // them to the umask default and broaden access to stored session keys.
+        try {
+            fs.chmodSync(tmpPath, fs.statSync(STORE_PATH).mode);
+        } catch { /* no existing store yet — keep the temp file's default mode */ }
         fs.renameSync(tmpPath, STORE_PATH);
     } catch (err) {
         console.error('❌ Failed to save users.json:', err.message);
