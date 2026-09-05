@@ -47,6 +47,10 @@
    LAST_API_KEY="your_lastfm_api_key"
    LAST_SHARED_SECRET="your_lastfm_shared_secret"
 
+   # Same client ID as the frontend; the backend rejects Google ID tokens
+   # issued for any other app. Leave unset only for local experiments.
+   GOOGLE_CLIENT_ID="your_google_oauth_client_id.apps.googleusercontent.com"
+
    SESSION_SECRET="any_random_string"
    FRONTEND_URL="http://localhost:3001"
    BACKEND_URL="http://localhost:3000"
