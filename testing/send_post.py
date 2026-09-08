@@ -18,6 +18,20 @@ ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
 ACCESS_SECRET = os.getenv("ACR_SHARED")
 REQ_URL = os.getenv("ACR_URL")
 
+# Fail fast on missing configuration instead of crashing later in
+# generate_signature() (and looping forever) with an opaque AttributeError.
+_missing = [
+    name
+    for name, value in (
+        ("ACR_ACCESS_KEY", ACCESS_KEY),
+        ("ACR_SHARED", ACCESS_SECRET),
+        ("ACR_URL", REQ_URL),
+    )
+    if not value
+]
+if _missing:
+    raise SystemExit(f"Missing required environment variables: {', '.join(_missing)}")
+
 # Audio configuration
 CHUNK = 1024
 FORMAT = pyaudio.paInt16

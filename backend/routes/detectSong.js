@@ -108,8 +108,9 @@ router.post('/', upload.single('sample'), async (req, res) => {
       console.log(`Stored detected song: ${title} by ${artist}`);
       res.json({ title, artist });
     } else if (statusCode === 1001) {
+      // 204 No Content must not carry a body; the frontend keys off the status.
       console.warn('No result detected.');
-      res.status(204).send('No result detected. Please try again.');
+      res.status(204).end();
     } else {
       console.error('Song detection failed:', statusCode);
       res.status(500).send('Song detection failed');
