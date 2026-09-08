@@ -80,7 +80,15 @@ router.post('/', upload.single('sample'), async (req, res) => {
       timeout: 10000,
     });
 
-    if (response.data.status.code === 0) {
+    // A malformed 200 without a status object would throw here; treat a missing
+    // status code as an unexpected upstream response rather than a generic 500.
+    const statusCode = response.data?.status?.code;
+    if (statusCode === undefined) {
+      console.error('Unexpected response from detection service:', response.data);
+      return res.status(502).send('Unexpected response from detection service');
+    }
+
+    if (statusCode === 0) {
       // Guard the whole chain: a success status can still come back without
       // a metadata.music array, which previously threw and surfaced as a 500.
       const musicData = response.data.metadata?.music?.[0];
@@ -99,11 +107,11 @@ router.post('/', upload.single('sample'), async (req, res) => {
       setDetectedSong(req.session.userId, { title, artist });
       console.log(`Stored detected song: ${title} by ${artist}`);
       res.json({ title, artist });
-    } else if (response.data.status.code === 1001) {
+    } else if (statusCode === 1001) {
       console.warn('No result detected.');
       res.status(204).send('No result detected. Please try again.');
     } else {
-      console.error('Song detection failed:', response.data.status.code);
+      console.error('Song detection failed:', statusCode);
       res.status(500).send('Song detection failed');
     }
   } catch (error) {
