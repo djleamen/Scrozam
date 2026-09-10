@@ -15,8 +15,22 @@ load_dotenv()
 
 # ACRCloud credentials
 ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
-ACCESS_SECRET = os.getenv("ACR_ACCESS_SECRET")
+ACCESS_SECRET = os.getenv("ACR_SHARED")
 REQ_URL = os.getenv("ACR_URL")
+
+# Fail fast on missing configuration instead of crashing later in
+# generate_signature() (and looping forever) with an opaque AttributeError.
+_missing = [
+    name
+    for name, value in (
+        ("ACR_ACCESS_KEY", ACCESS_KEY),
+        ("ACR_SHARED", ACCESS_SECRET),
+        ("ACR_URL", REQ_URL),
+    )
+    if not value
+]
+if _missing:
+    raise SystemExit(f"Missing required environment variables: {', '.join(_missing)}")
 
 # Audio configuration
 CHUNK = 1024
@@ -74,7 +88,7 @@ def send_audio_to_acrcloud(audio_bytes):
         "signature_version": "1"
     }
 
-    response = requests.post(REQ_URL, files=files, data=data)
+    response = requests.post(REQ_URL, files=files, data=data, timeout=10)
     return response
 
 def main():
@@ -92,13 +106,6 @@ def main():
                     title = music_info['title']
                     artist = music_info['artists'][0]['name']
                     print(f"Song detected: {title} by {artist}")
-
-                    # Send detected song data to backend
-                    song_data = {
-                        "title": title,
-                        "artist": artist
-                    }
-                    requests.post('http://localhost:3000/detected-song', json=song_data)
 
                     # Stop after detecting a song if configured
                     if os.getenv("STOP_AFTER_DETECT", "True") == "True":
