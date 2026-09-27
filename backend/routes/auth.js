@@ -143,7 +143,9 @@ router.get('/lastfm', (req, res) => {
 router.get('/lastfm/callback', async (req, res) => {
     const { token } = req.query;
 
-    if (!token) {
+    // A duplicated query param (?token=a&token=b) arrives as an array, which
+    // would corrupt the MD5 signature below; require a single string value.
+    if (!token || typeof token !== 'string') {
         return res.redirect(`${FRONTEND_URL}/?error=lastfm_missing_token`);
     }
 
