@@ -6,6 +6,7 @@
  * Written by DJ Leamen 2024-2026
  */
 
+const crypto = require('crypto');
 const express = require('express');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
@@ -22,6 +23,14 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 if (IS_PRODUCTION && !process.env.SESSION_SECRET) {
     throw new Error('SESSION_SECRET must be set in production');
 }
+
+// Never ship a committed, publicly-known fallback secret: anyone could use it
+// to forge session cookies if it reached a deployment (e.g. one that forgot to
+// set NODE_ENV=production). When SESSION_SECRET is unset outside production,
+// fall back to a random per-process secret instead — sessions simply don't
+// survive a restart, which is acceptable for local development.
+const SESSION_SECRET = process.env.SESSION_SECRET
+    || crypto.randomBytes(32).toString('hex');
 
 app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -41,7 +50,7 @@ if (IS_PRODUCTION) {
 
 // ─── Session ──────────────────────────────────────────────────────────────────
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'scrozam-dev-secret-change-in-prod',
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {

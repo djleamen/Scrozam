@@ -195,12 +195,14 @@ router.get('/proxy', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('Missing url parameter');
 
-  // Only allow proxying images from a restricted set of Last.fm/CDN hosts
+  // Only allow proxying images from Last.fm's image CDNs. The full site host
+  // (www.last.fm) is intentionally excluded: album/artist image URLs always
+  // come from these CDNs, and allowing the whole site would turn this
+  // unauthenticated proxy into an open relay for any path on www.last.fm.
   const ALLOWED_IMAGE_HOSTS = new Set([
     'lastfm.freetls.fastly.net',
     'lastfm-img2.akamaized.net',
     'userserve-ak.last.fm',
-    'www.last.fm',
   ]);
 
   let parsedUrl;
