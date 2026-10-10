@@ -60,6 +60,10 @@ function MainApp() {
   const lastAlbumArtTrack = useRef('');
   const lastPolledTrack = useRef(''); // tracks what the poll loop has already handled
   const albumArtRequestId = useRef(0); // guards against out-of-order art responses
+  // Mirror of continuousListening for the recording loop: onstop runs inside a
+  // closure captured at click time, so reading state directly there goes stale
+  // when the user toggles the switch or stops mid-cycle. The ref is always current.
+  const continuousListeningRef = useRef(false);
 
   const flashOrbitState = useCallback((state, duration = 500) => {
     if (orbitStateTimeoutRef.current) {
@@ -91,6 +95,11 @@ function MainApp() {
     const id = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(id);
   }, []);
+
+  // Keep the recording loop's view of continuous mode in sync with the toggle.
+  useEffect(() => {
+    continuousListeningRef.current = continuousListening;
+  }, [continuousListening]);
 
   const fetchAlbumArt = useCallback(async (artist, title) => {
     /**
@@ -255,7 +264,7 @@ function MainApp() {
             if (response.status === 204) {
               console.warn('No result detected. Retrying…');
               flashOrbitState('error', 700);
-              if (continuousListening) setTimeout(startRecording, 500);
+              if (continuousListeningRef.current) setTimeout(startRecording, 500);
               else stopStream();
               return;
             }
@@ -267,12 +276,16 @@ function MainApp() {
             addToHistory(songData.artist, songData.title);
             fetchAlbumArt(songData.artist, songData.title);
 
-            if (continuousListening) setTimeout(startRecording, 500);
+            if (continuousListeningRef.current) setTimeout(startRecording, 500);
             else stopStream();
 
           } catch (error) {
             console.error('Error detecting song:', error);
             flashOrbitState('error', 700);
+            // Don't leave the mic open on error: retry in continuous mode,
+            // otherwise release the stream and reset the listening state.
+            if (continuousListeningRef.current) setTimeout(startRecording, 500);
+            else stopStream();
           }
         };
 
@@ -291,6 +304,9 @@ function MainApp() {
   };
 
   const handleStopListening = () => {
+    // Update the ref synchronously so an in-flight detection cycle sees the
+    // stop immediately and won't re-open the mic via setTimeout(startRecording).
+    continuousListeningRef.current = false;
     setContinuousListening(false);
     setIsListening(false);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
