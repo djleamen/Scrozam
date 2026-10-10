@@ -64,6 +64,8 @@ function MainApp() {
   // closure captured at click time, so reading state directly there goes stale
   // when the user toggles the switch or stops mid-cycle. The ref is always current.
   const continuousListeningRef = useRef(false);
+  // Pending next-cycle restart, so Stop can cancel it during the delay.
+  const retryTimeoutRef = useRef(null);
 
   const flashOrbitState = useCallback((state, duration = 500) => {
     if (orbitStateTimeoutRef.current) {
@@ -183,6 +185,9 @@ function MainApp() {
       if (orbitStateTimeoutRef.current) {
         clearTimeout(orbitStateTimeoutRef.current);
       }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -243,6 +248,16 @@ function MainApp() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
+      // Queue the next cycle, re-checking continuous mode when the timer
+      // fires (not just when it is queued) so a Stop or toggle-off during the
+      // delay cancels the restart instead of re-opening the mic.
+      const scheduleRetry = () => {
+        retryTimeoutRef.current = setTimeout(() => {
+          retryTimeoutRef.current = null;
+          if (continuousListeningRef.current) startRecording();
+        }, 500);
+      };
+
       const startRecording = () => {
         const mediaRecorder = new MediaRecorder(streamRef.current);
         mediaRecorderRef.current = mediaRecorder;
@@ -264,7 +279,7 @@ function MainApp() {
             if (response.status === 204) {
               console.warn('No result detected. Retrying…');
               flashOrbitState('error', 700);
-              if (continuousListeningRef.current) setTimeout(startRecording, 500);
+              if (continuousListeningRef.current) scheduleRetry();
               else stopStream();
               return;
             }
@@ -276,7 +291,7 @@ function MainApp() {
             addToHistory(songData.artist, songData.title);
             fetchAlbumArt(songData.artist, songData.title);
 
-            if (continuousListeningRef.current) setTimeout(startRecording, 500);
+            if (continuousListeningRef.current) scheduleRetry();
             else stopStream();
 
           } catch (error) {
@@ -284,7 +299,7 @@ function MainApp() {
             flashOrbitState('error', 700);
             // Don't leave the mic open on error: retry in continuous mode,
             // otherwise release the stream and reset the listening state.
-            if (continuousListeningRef.current) setTimeout(startRecording, 500);
+            if (continuousListeningRef.current) scheduleRetry();
             else stopStream();
           }
         };
@@ -309,6 +324,11 @@ function MainApp() {
     continuousListeningRef.current = false;
     setContinuousListening(false);
     setIsListening(false);
+    // Cancel a retry queued during the current cycle's detection delay.
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
