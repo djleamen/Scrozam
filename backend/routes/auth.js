@@ -15,7 +15,7 @@ const { upsertUser, getUser, setLastFmSessionKey, setPreferences, safeUser } = r
 require('dotenv').config();
 
 const LAST_API_KEY = process.env.LAST_API_KEY;
-const LAST_SHARED_SECRET = process.env.LAST_SHARED_SECRET;
+const LAST_SHARED_SECRET = process.env.LAST_SHARED_SECRET?.trim();
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
