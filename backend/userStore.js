@@ -70,10 +70,19 @@ function upsertUser(googleSub, profile) {
         };
         saveStore();
     } else {
-        // Update profile info in case it changed
-        users[googleSub].email = profile.email;
-        users[googleSub].name = profile.name;
-        users[googleSub].picture = profile.picture;
+        // Update profile info in case it changed. Persist only when something
+        // actually changed, so a plain re-login (the common case) doesn't
+        // rewrite the store, but a new Google name/email/avatar survives a
+        // restart instead of silently reverting.
+        const user = users[googleSub];
+        if (user.email !== profile.email ||
+            user.name !== profile.name ||
+            user.picture !== profile.picture) {
+            user.email = profile.email;
+            user.name = profile.name;
+            user.picture = profile.picture;
+            saveStore();
+        }
     }
     return users[googleSub];
 }
