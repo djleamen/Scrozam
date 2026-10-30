@@ -172,10 +172,12 @@ function MainApp() {
         flashOrbitState('success', 450);
       } else {
         console.error('Failed to scrobble song');
+        lastScrobbledTrack.current = ''; // let the next detection retry
         flashOrbitState('error', 700);
       }
     } catch (error) {
       console.error('Error scrobbling to Last.fm:', error);
+      lastScrobbledTrack.current = '';
       flashOrbitState('error', 700);
     }
   }, [authFetch, backendUrl, flashOrbitState]);
