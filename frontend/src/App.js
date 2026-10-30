@@ -154,10 +154,14 @@ function MainApp() {
   }, [authFetch, backendUrl]);
 
   // Forget the failed track in both dedupe markers so the next poll that sees
-  // it runs handleNewTrack again (history and album art already dedupe).
-  const allowScrobbleRetry = useCallback(() => {
-    lastScrobbledTrack.current = '';
-    lastPolledTrack.current = '';
+  // it runs handleNewTrack again (history and album art already dedupe). Only
+  // roll back a marker that still points at the failed track: polling does not
+  // await handleNewTrack, so a newer track may have been detected and scrobbled
+  // while this request was in flight, and clearing unconditionally would let
+  // that newer track scrobble a second time.
+  const allowScrobbleRetry = useCallback((trackKey) => {
+    if (lastScrobbledTrack.current === trackKey) lastScrobbledTrack.current = '';
+    if (lastPolledTrack.current === trackKey) lastPolledTrack.current = '';
   }, []);
 
   const handleNewTrack = useCallback(async (artist, title) => {
@@ -165,8 +169,9 @@ function MainApp() {
      * Scrobbles a new track to Last.fm.
      * Guards against duplicate scrobbles of the same track.
      */
-    if (`${artist}-${title}` === lastScrobbledTrack.current) return;
-    lastScrobbledTrack.current = `${artist}-${title}`;
+    const trackKey = `${artist}-${title}`;
+    if (trackKey === lastScrobbledTrack.current) return;
+    lastScrobbledTrack.current = trackKey;
 
     try {
       const response = await authFetch(`${backendUrl}/scrobble-song`, {
@@ -179,12 +184,12 @@ function MainApp() {
         flashOrbitState('success', 450);
       } else {
         console.error('Failed to scrobble song');
-        allowScrobbleRetry();
+        allowScrobbleRetry(trackKey);
         flashOrbitState('error', 700);
       }
     } catch (error) {
       console.error('Error scrobbling to Last.fm:', error);
-      allowScrobbleRetry();
+      allowScrobbleRetry(trackKey);
       flashOrbitState('error', 700);
     }
   }, [authFetch, backendUrl, flashOrbitState, allowScrobbleRetry]);

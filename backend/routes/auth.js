@@ -167,11 +167,12 @@ router.get('/lastfm/callback', async (req, res) => {
     }
 
     const expectedState = req.session.lastfmState;
-    delete req.session.lastfmState; // one-time use
     if (!expectedState || !tokensMatch(expectedState, state)) {
         console.warn('⚠️  Rejected Last.fm callback: state mismatch.');
         return res.redirect(`${FRONTEND_URL}/?error=lastfm_auth_failed`);
     }
+    delete req.session.lastfmState; // one-time use, consumed only on a valid match
+
 
     const params = {
         api_key: LAST_API_KEY,
