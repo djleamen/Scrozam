@@ -153,6 +153,13 @@ function MainApp() {
     if (isLatest()) setAlbumArtLoading(false);
   }, [authFetch, backendUrl]);
 
+  // Forget the failed track in both dedupe markers so the next poll that sees
+  // it runs handleNewTrack again (history and album art already dedupe).
+  const allowScrobbleRetry = useCallback(() => {
+    lastScrobbledTrack.current = '';
+    lastPolledTrack.current = '';
+  }, []);
+
   const handleNewTrack = useCallback(async (artist, title) => {
     /**
      * Scrobbles a new track to Last.fm.
@@ -172,15 +179,15 @@ function MainApp() {
         flashOrbitState('success', 450);
       } else {
         console.error('Failed to scrobble song');
-        lastScrobbledTrack.current = ''; // let the next detection retry
+        allowScrobbleRetry();
         flashOrbitState('error', 700);
       }
     } catch (error) {
       console.error('Error scrobbling to Last.fm:', error);
-      lastScrobbledTrack.current = '';
+      allowScrobbleRetry();
       flashOrbitState('error', 700);
     }
-  }, [authFetch, backendUrl, flashOrbitState]);
+  }, [authFetch, backendUrl, flashOrbitState, allowScrobbleRetry]);
 
   useEffect(() => {
     return () => {
