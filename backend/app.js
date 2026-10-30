@@ -12,7 +12,7 @@ const session = require('express-session');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const helmet = require('helmet');
-const csrf = require('csurf');
+const { csrfProtection } = require('./csrf');
 require('dotenv').config();
 
 const app = express();
@@ -64,7 +64,6 @@ app.use(session({
 app.use(express.json({ limit: '256kb' }));
 
 // ─── CSRF protection ──────────────────────────────────────────────────────────
-const csrfProtection = csrf({ cookie: false });
 app.use(csrfProtection);
 
 // ─── Rate limiter ─────────────────────────────────────────────────────────────
