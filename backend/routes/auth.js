@@ -8,10 +8,9 @@
 const express = require('express');
 const axios = require('axios');
 const crypto = require('node:crypto');
-const fs = require('node:fs');
-const path = require('node:path');
 const router = express.Router();
 const { upsertUser, getUser, setLastFmSessionKey, setPreferences, safeUser } = require('../userStore');
+const { tokensMatch } = require('../csrf');
 require('dotenv').config();
 
 const LAST_API_KEY = process.env.LAST_API_KEY;
@@ -71,10 +70,20 @@ router.post('/google', async (req, res) => {
         }
 
         const user = upsertUser(sub, { email, name, picture });
-        req.session.userId = sub;
 
-        console.log(`✅ Google sign-in successful for user ${sub}`);
-        res.json({ user: safeUser(user) });
+        // Issue a fresh session ID on sign-in so a session ID planted before
+        // login (session fixation) can't be used to ride the authenticated
+        // session. This also drops the pre-login CSRF token; the frontend
+        // fetches a new one on its next mutating request.
+        req.session.regenerate((err) => {
+            if (err) {
+                console.error('Session regenerate failed:', err.message);
+                return res.status(500).json({ error: 'Could not start session' });
+            }
+            req.session.userId = sub;
+            console.log(`✅ Google sign-in successful for user ${sub}`);
+            res.json({ user: safeUser(user) });
+        });
 
     } catch (error) {
         console.error('Google auth error:', error.response?.status || error.message);
@@ -130,7 +139,13 @@ router.get('/lastfm', (req, res) => {
         return res.redirect(`${FRONTEND_URL}/?error=not_authenticated`);
     }
 
-    const callbackUrl = `${BACKEND_URL}/auth/lastfm/callback`;
+    // Last.fm has no OAuth `state`, so carry our own one-time nonce through
+    // the callback URL. Without it, anyone could send a signed-in user to
+    // /auth/lastfm/callback?token=<attacker's token> and silently link the
+    // attacker's Last.fm account (login CSRF).
+    const state = crypto.randomBytes(16).toString('hex');
+    req.session.lastfmState = state;
+    const callbackUrl = `${BACKEND_URL}/auth/lastfm/callback?state=${state}`;
     const authUrl = `https://www.last.fm/api/auth/?api_key=${LAST_API_KEY}&cb=${encodeURIComponent(callbackUrl)}`;
     res.redirect(authUrl);
 });
@@ -141,15 +156,23 @@ router.get('/lastfm', (req, res) => {
  * and stores it on the user's account.
  */
 router.get('/lastfm/callback', async (req, res) => {
-    const { token } = req.query;
+    const { token, state } = req.query;
 
-    if (!token) {
+    if (!token || typeof token !== 'string') {
         return res.redirect(`${FRONTEND_URL}/?error=lastfm_missing_token`);
     }
 
     if (!req.session.userId) {
         return res.redirect(`${FRONTEND_URL}/?error=not_authenticated`);
     }
+
+    const expectedState = req.session.lastfmState;
+    if (!expectedState || !tokensMatch(expectedState, state)) {
+        console.warn('⚠️  Rejected Last.fm callback: state mismatch.');
+        return res.redirect(`${FRONTEND_URL}/?error=lastfm_auth_failed`);
+    }
+    delete req.session.lastfmState; // one-time use, consumed only on a valid match
+
 
     const params = {
         api_key: LAST_API_KEY,
