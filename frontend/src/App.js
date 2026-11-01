@@ -60,6 +60,8 @@ function MainApp() {
   const lastAlbumArtTrack = useRef('');
   const lastPolledTrack = useRef(''); // tracks what the poll loop has already handled
   const albumArtRequestId = useRef(0); // guards against out-of-order art responses
+  const scrobbleAttemptId = useRef(0); // monotonic id stamped on each handleNewTrack call
+  const lastScrobbleAttempt = useRef(0); // attempt id that currently owns the dedupe markers
   // Mirror of continuousListening for the recording loop: onstop runs inside a
   // closure captured at click time, so reading state directly there goes stale
   // when the user toggles the switch or stops mid-cycle. The ref is always current.
@@ -155,11 +157,15 @@ function MainApp() {
 
   // Forget the failed track in both dedupe markers so the next poll that sees
   // it runs handleNewTrack again (history and album art already dedupe). Only
-  // roll back a marker that still points at the failed track: polling does not
-  // await handleNewTrack, so a newer track may have been detected and scrobbled
-  // while this request was in flight, and clearing unconditionally would let
-  // that newer track scrobble a second time.
-  const allowScrobbleRetry = useCallback((trackKey) => {
+  // roll back when this call still owns the markers: polling does not await
+  // handleNewTrack, so a newer track may have been detected and scrobbled while
+  // this request was in flight. Matching on the track key alone can't tell two
+  // in-flight attempts for the same key apart (an A → B → A interleave), so a
+  // late failure of the first A could clear markers that now belong to the
+  // second, successful A and let it scrobble again. Gating on the attempt id
+  // the call was stamped with closes that race.
+  const allowScrobbleRetry = useCallback((trackKey, attempt) => {
+    if (attempt !== lastScrobbleAttempt.current) return;
     if (lastScrobbledTrack.current === trackKey) lastScrobbledTrack.current = '';
     if (lastPolledTrack.current === trackKey) lastPolledTrack.current = '';
   }, []);
@@ -172,6 +178,10 @@ function MainApp() {
     const trackKey = `${artist}-${title}`;
     if (trackKey === lastScrobbledTrack.current) return;
     lastScrobbledTrack.current = trackKey;
+    // Stamp this attempt and record it as the current owner of the markers so a
+    // later, out-of-order failure only rolls back if nothing newer has run.
+    const attempt = ++scrobbleAttemptId.current;
+    lastScrobbleAttempt.current = attempt;
 
     try {
       const response = await authFetch(`${backendUrl}/scrobble-song`, {
@@ -184,12 +194,12 @@ function MainApp() {
         flashOrbitState('success', 450);
       } else {
         console.error('Failed to scrobble song');
-        allowScrobbleRetry(trackKey);
+        allowScrobbleRetry(trackKey, attempt);
         flashOrbitState('error', 700);
       }
     } catch (error) {
       console.error('Error scrobbling to Last.fm:', error);
-      allowScrobbleRetry(trackKey);
+      allowScrobbleRetry(trackKey, attempt);
       flashOrbitState('error', 700);
     }
   }, [authFetch, backendUrl, flashOrbitState, allowScrobbleRetry]);

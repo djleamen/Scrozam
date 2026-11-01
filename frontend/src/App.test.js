@@ -207,3 +207,110 @@ describe('recording loop', () => {
     expect(recorders).toHaveLength(1);
   });
 });
+
+// ── Scrobble dedup under in-flight races ─────────────────────────────────────
+
+describe('scrobble retry/dedup', () => {
+  beforeEach(() => { jest.useFakeTimers(); });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  const flush = async () => {
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  };
+
+  // Drive the 3s poll loop once with the next detected song queued up.
+  const poll = async (detectedQueue, song) => {
+    detectedQueue.push(song);
+    await act(async () => { jest.advanceTimersByTime(3000); });
+    await flush();
+  };
+
+  // Install an authFetch mock that serves queued detected songs and captures
+  // each scrobble request so the test can settle them in any order. Returns the
+  // detected-song queue and the list of captured scrobble calls.
+  const installPollMock = () => {
+    const detectedQueue = [];
+    const scrobbleCalls = []; // { track, resolve }
+    mockAuthFetch = jest.fn((url, opts) => {
+      if (url.includes('/detected-song')) {
+        const next = detectedQueue.shift();
+        return Promise.resolve({ ok: true, status: 200, json: async () => next || {} });
+      }
+      if (url.includes('/scrobble-song')) {
+        const { artist, title } = JSON.parse(opts.body);
+        return new Promise((resolve) => {
+          scrobbleCalls.push({ track: `${artist}-${title}`, resolve });
+        });
+      }
+      // album-art and anything else: resolve with no payload.
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+    return { detectedQueue, scrobbleCalls };
+  };
+
+  // A → B → A: the first A's scrobble is still in flight when a second A is
+  // detected and scrobbled. When the first A finally fails, it must not clear
+  // the dedupe markers that now belong to the newer, successful A (which would
+  // let the next poll scrobble A a third time).
+  test('a late scrobble failure does not reopen a newer attempt for re-scrobbling', async () => {
+    const { detectedQueue, scrobbleCalls } = installPollMock();
+
+    const A = { artist: 'A', title: 'Song' };
+    const B = { artist: 'B', title: 'Other' };
+
+    const { unmount } = render(<App />);
+
+    await poll(detectedQueue, A); // scrobble #1 (A) — held in flight
+    await poll(detectedQueue, B); // scrobble #2 (B)
+    await poll(detectedQueue, A); // scrobble #3 (A again)
+
+    expect(scrobbleCalls.map((c) => c.track)).toEqual(['A-Song', 'B-Other', 'A-Song']);
+
+    // Newer attempts settle first (B, then the second A), then the original A
+    // fails out of order.
+    await act(async () => { scrobbleCalls[1].resolve({ ok: true, status: 200 }); });
+    await act(async () => { scrobbleCalls[2].resolve({ ok: true, status: 200 }); });
+    await flush();
+    await act(async () => { scrobbleCalls[0].resolve({ ok: false, status: 500 }); });
+    await flush();
+
+    // Next poll still sees A; the stale failure must not have cleared the markers.
+    await poll(detectedQueue, A);
+
+    const aCalls = scrobbleCalls.filter((c) => c.track === 'A-Song');
+    expect(aCalls).toHaveLength(2); // only the two real attempts, no duplicate
+
+    unmount();
+  });
+
+  // Baseline: a failure that is still the current attempt rolls the markers
+  // back so the same track can be retried on the next poll.
+  test('a current-attempt failure allows the same track to retry', async () => {
+    const { detectedQueue, scrobbleCalls } = installPollMock();
+
+    const A = { artist: 'A', title: 'Song' };
+
+    const { unmount } = render(<App />);
+
+    await poll(detectedQueue, A); // scrobble #1 (A)
+    expect(scrobbleCalls).toHaveLength(1);
+
+    // It fails while still the latest attempt → markers roll back.
+    await act(async () => { scrobbleCalls[0].resolve({ ok: false, status: 500 }); });
+    await flush();
+
+    await poll(detectedQueue, A); // same track detected again → retried
+    expect(scrobbleCalls).toHaveLength(2);
+    expect(scrobbleCalls[1].track).toBe('A-Song');
+
+    unmount();
+  });
+});
