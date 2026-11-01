@@ -233,14 +233,12 @@ describe('scrobble retry/dedup', () => {
     await flush();
   };
 
-  // A → B → A: the first A's scrobble is still in flight when a second A is
-  // detected and scrobbled. When the first A finally fails, it must not clear
-  // the dedupe markers that now belong to the newer, successful A (which would
-  // let the next poll scrobble A a third time).
-  test('a late scrobble failure does not reopen a newer attempt for re-scrobbling', async () => {
+  // Install an authFetch mock that serves queued detected songs and captures
+  // each scrobble request so the test can settle them in any order. Returns the
+  // detected-song queue and the list of captured scrobble calls.
+  const installPollMock = () => {
     const detectedQueue = [];
     const scrobbleCalls = []; // { track, resolve }
-
     mockAuthFetch = jest.fn((url, opts) => {
       if (url.includes('/detected-song')) {
         const next = detectedQueue.shift();
@@ -255,6 +253,15 @@ describe('scrobble retry/dedup', () => {
       // album-art and anything else: resolve with no payload.
       return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
     });
+    return { detectedQueue, scrobbleCalls };
+  };
+
+  // A → B → A: the first A's scrobble is still in flight when a second A is
+  // detected and scrobbled. When the first A finally fails, it must not clear
+  // the dedupe markers that now belong to the newer, successful A (which would
+  // let the next poll scrobble A a third time).
+  test('a late scrobble failure does not reopen a newer attempt for re-scrobbling', async () => {
+    const { detectedQueue, scrobbleCalls } = installPollMock();
 
     const A = { artist: 'A', title: 'Song' };
     const B = { artist: 'B', title: 'Other' };
@@ -287,22 +294,7 @@ describe('scrobble retry/dedup', () => {
   // Baseline: a failure that is still the current attempt rolls the markers
   // back so the same track can be retried on the next poll.
   test('a current-attempt failure allows the same track to retry', async () => {
-    const detectedQueue = [];
-    const scrobbleCalls = [];
-
-    mockAuthFetch = jest.fn((url, opts) => {
-      if (url.includes('/detected-song')) {
-        const next = detectedQueue.shift();
-        return Promise.resolve({ ok: true, status: 200, json: async () => next || {} });
-      }
-      if (url.includes('/scrobble-song')) {
-        const { artist, title } = JSON.parse(opts.body);
-        return new Promise((resolve) => {
-          scrobbleCalls.push({ track: `${artist}-${title}`, resolve });
-        });
-      }
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
-    });
+    const { detectedQueue, scrobbleCalls } = installPollMock();
 
     const A = { artist: 'A', title: 'Song' };
 
