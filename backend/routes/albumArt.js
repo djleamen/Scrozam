@@ -232,6 +232,11 @@ router.get('/proxy', async (req, res) => {
     return res.status(400).send('URL not allowed');
   }
 
+  // Reject URLs with embedded credentials to avoid ambiguous/abusive URL forms.
+  if (parsedUrl.username || parsedUrl.password) {
+    return res.status(400).send('URL not allowed');
+  }
+
   const safeUrl = parsedUrl.toString();
 
   try {
