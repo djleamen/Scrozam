@@ -13,22 +13,34 @@ const API_KEY = process.env.LAST_API_KEY;
 
 const PROXY_ERROR_MESSAGE = 'Failed to fetch image';
 
+// Last.fm serves this generic grey-star image when it has no real artwork
+// (including for every artist image since it stopped serving them in 2019).
+const LASTFM_PLACEHOLDER_IMAGE_ID = '2a96cbd8b46e442fc41c2b86b821562f';
+
+const IMAGE_SIZES_LARGEST_FIRST = ['mega', 'extralarge', 'large', 'medium', 'small'];
+
 const extractLargestImage = (images) => {
   /**
    * Helper function to extract the largest image URL from Last.fm image array.
    * Last.fm image sizes (from smallest to largest):
    * small, medium, large, extralarge, mega
+   * Empty URLs and Last.fm's placeholder image are ignored.
    * 
    * @param {Array} images - Array of image objects from Last.fm
    * @returns {string|null} - URL of the largest image or null if none found
    */
-  if (!images || images.length === 0) return null;
-  
-  const largestImage = images.find(img => img.size === 'extralarge') || 
-                       images.find(img => img.size === 'large') || 
-                       images[images.length - 1];
-  
-  return largestImage?.['#text'] || null;
+  if (!Array.isArray(images)) return null;
+
+  const usable = images.filter(
+    (img) => img?.['#text'] && !img['#text'].includes(LASTFM_PLACEHOLDER_IMAGE_ID)
+  );
+  if (usable.length === 0) return null;
+
+  for (const size of IMAGE_SIZES_LARGEST_FIRST) {
+    const match = usable.find((img) => img.size === size);
+    if (match) return match['#text'];
+  }
+  return usable[usable.length - 1]['#text'];
 };
 
 const fetchAlbumInfo = async (artist, albumName) => {
@@ -201,6 +213,7 @@ router.get('/proxy', async (req, res) => {
   // unauthenticated proxy into an open relay for any path on www.last.fm.
   const ALLOWED_IMAGE_HOSTS = new Set([
     'lastfm.freetls.fastly.net',
+    'lastfm-img.freetls.fastly.net',
     'lastfm-img2.akamaized.net',
     'userserve-ak.last.fm',
   ]);

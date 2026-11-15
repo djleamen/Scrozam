@@ -60,14 +60,6 @@ function MainApp() {
   const lastAlbumArtTrack = useRef('');
   const lastPolledTrack = useRef(''); // tracks what the poll loop has already handled
   const albumArtRequestId = useRef(0); // guards against out-of-order art responses
-  const scrobbleAttemptId = useRef(0); // monotonic id stamped on each handleNewTrack call
-  const lastScrobbleAttempt = useRef(0); // attempt id that currently owns the dedupe markers
-  // Mirror of continuousListening for the recording loop: onstop runs inside a
-  // closure captured at click time, so reading state directly there goes stale
-  // when the user toggles the switch or stops mid-cycle. The ref is always current.
-  const continuousListeningRef = useRef(false);
-  // Pending next-cycle restart, so Stop can cancel it during the delay.
-  const retryTimeoutRef = useRef(null);
 
   const flashOrbitState = useCallback((state, duration = 500) => {
     if (orbitStateTimeoutRef.current) {
@@ -99,11 +91,6 @@ function MainApp() {
     const id = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(id);
   }, []);
-
-  // Keep the recording loop's view of continuous mode in sync with the toggle.
-  useEffect(() => {
-    continuousListeningRef.current = continuousListening;
-  }, [continuousListening]);
 
   const fetchAlbumArt = useCallback(async (artist, title) => {
     /**

@@ -32,7 +32,7 @@
 1. **Configure Google OAuth**
    - Go to [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials.
    - Create an **OAuth 2.0 Client ID** (Web application).
-   - Add `http://localhost:3001` to **Authorised JavaScript origins**.
+   - Add both `http://localhost` and `http://localhost:3001` to **Authorised JavaScript origins** (Google requires both for local development; changes can take a few minutes to apply).
    - Copy the client ID for use in the frontend `.env`.
 
 2. **Add environment variables**
@@ -85,7 +85,7 @@
    npm start
    ```
 
-   Type `y` if prompted to use port 3001.
+   Type `y` if prompted to use port 3001. The frontend must run on the port that matches `FRONTEND_URL` and your Google origins. If 3001 is taken, the app may start on 3002, and Google sign-in will then fail with a 403 or a CORS error. Free port 3001, or update `FRONTEND_URL` and your Google origins to match the new port.
 
 6. **Sign in**
    - Open <http://localhost:3001>.
