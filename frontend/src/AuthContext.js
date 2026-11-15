@@ -95,6 +95,8 @@ export function AuthProvider({ children }) {
 
         if (!res.ok) throw new Error('Google authentication failed');
         const data = await res.json();
+        // Sign-in rotates the server session, which invalidates the old CSRF token.
+        setCsrfToken('');
         setUser(data.user);
         return data.user;
     }, [authFetch]);

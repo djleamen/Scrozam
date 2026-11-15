@@ -50,6 +50,15 @@ router.post('/', async (req, res) => {
         return res.status(400).send('Artist and title are required');
     }
 
+    if (typeof artist !== 'string' || typeof title !== 'string' ||
+        artist.length > 512 || title.length > 512) {
+        return res.status(400).send('Artist and title must be strings of at most 512 characters');
+    }
+
+    if (typeof chosenByUser !== 'string' || !['0', '1'].includes(chosenByUser)) {
+        return res.status(400).send('chosenByUser must be "0" or "1"');
+    }
+
     if (!API_KEY || !SHARED_SECRET) {
         return res.status(500).send('Last.fm API credentials are not configured');
     }

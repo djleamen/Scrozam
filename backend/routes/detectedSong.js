@@ -13,7 +13,7 @@ router.get('/', (req, res) => {
      * GET /detected-song
      * Returns the most recently detected song and clears it, or null.
      */
-    const song = popDetectedSong();
+    const song = popDetectedSong(req.session.userId);
     if (song) {
         console.log(`🎧 Sending detected song to frontend: ${song.title} - ${song.artist}`);
     } else {

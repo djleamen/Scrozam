@@ -59,7 +59,8 @@ const fetchAlbumInfo = async (artist, albumName) => {
         artist: artist,
         album: albumName,
         format: 'json'
-      }
+      },
+      timeout: 10000
     });
 
     if (response.data.album?.image) {
@@ -85,7 +86,8 @@ const fetchArtistInfo = async (artist) => {
         api_key: API_KEY,
         artist: artist,
         format: 'json'
-      }
+      },
+      timeout: 10000
     });
 
     if (response.data.artist?.image) {
@@ -124,6 +126,11 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Artist and title are required' });
   }
 
+  if (typeof artist !== 'string' || typeof title !== 'string' ||
+      artist.length > 512 || title.length > 512) {
+    return res.status(400).json({ error: 'Artist and title must be strings of at most 512 characters' });
+  }
+
   if (!API_KEY) {
     return res.status(500).json({ error: 'Last.fm API key not configured' });
   }
@@ -135,7 +142,8 @@ router.post('/', async (req, res) => {
     const tryTrackInfo = async (trackTitle) => {
       try {
         const trackResponse = await axios.get('https://ws.audioscrobbler.com/2.0/', {
-          params: { method: 'track.getInfo', api_key: API_KEY, artist, track: trackTitle, format: 'json' }
+          params: { method: 'track.getInfo', api_key: API_KEY, artist, track: trackTitle, format: 'json' },
+          timeout: 10000
         });
         const track = trackResponse.data.track;
         if (!track) return null;
@@ -199,13 +207,15 @@ router.get('/proxy', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('Missing url parameter');
 
-  // Only allow proxying images from a restricted set of Last.fm/CDN hosts
+  // Only allow proxying images from Last.fm's image CDNs. The full site host
+  // (www.last.fm) is intentionally excluded: album/artist image URLs always
+  // come from these CDNs, and allowing the whole site would turn this
+  // unauthenticated proxy into an open relay for any path on www.last.fm.
   const ALLOWED_IMAGE_HOSTS = new Set([
     'lastfm.freetls.fastly.net',
     'lastfm-img.freetls.fastly.net',
     'lastfm-img2.akamaized.net',
     'userserve-ak.last.fm',
-    'www.last.fm',
   ]);
 
   let parsedUrl;
@@ -232,6 +242,12 @@ router.get('/proxy', async (req, res) => {
         'User-Agent': 'Mozilla/5.0',
       },
       timeout: 10000,
+      // The host allowlist above only vets the initial URL. axios follows
+      // redirects by default, so an allowed host answering with a 3xx could
+      // send us to an internal/arbitrary address and defeat the allowlist
+      // (SSRF). Refuse to follow redirects; a 3xx then rejects into the
+      // catch below and is served as a 502.
+      maxRedirects: 0,
     });
 
     const imageHeaders = {

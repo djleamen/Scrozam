@@ -10,8 +10,6 @@
 
 *Scrozam!* is a web application that detects songs using the ACRCloud API and scrobbles the identified tracks to a user's Last.fm account.
 
-<img width="1512" height="862" alt="Screenshot 2026-02-26 at 10 11 48 PM" src="https://github.com/user-attachments/assets/7622d50f-e76d-4864-a1ee-14a055d14a2f" />
-
 ## Features
 
 - **Google SSO** — sign in with your Google account; no password required.
@@ -48,6 +46,10 @@
 
    LAST_API_KEY="your_lastfm_api_key"
    LAST_SHARED_SECRET="your_lastfm_shared_secret"
+
+   # Same client ID as the frontend; the backend rejects Google ID tokens
+   # issued for any other app. Leave unset only for local experiments.
+   GOOGLE_CLIENT_ID="your_google_oauth_client_id.apps.googleusercontent.com"
 
    SESSION_SECRET="any_random_string"
    FRONTEND_URL="http://localhost:3001"

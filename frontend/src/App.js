@@ -142,13 +142,33 @@ function MainApp() {
     if (isLatest()) setAlbumArtLoading(false);
   }, [authFetch, backendUrl]);
 
+  // Forget the failed track in both dedupe markers so the next poll that sees
+  // it runs handleNewTrack again (history and album art already dedupe). Only
+  // roll back when this call still owns the markers: polling does not await
+  // handleNewTrack, so a newer track may have been detected and scrobbled while
+  // this request was in flight. Matching on the track key alone can't tell two
+  // in-flight attempts for the same key apart (an A → B → A interleave), so a
+  // late failure of the first A could clear markers that now belong to the
+  // second, successful A and let it scrobble again. Gating on the attempt id
+  // the call was stamped with closes that race.
+  const allowScrobbleRetry = useCallback((trackKey, attempt) => {
+    if (attempt !== lastScrobbleAttempt.current) return;
+    if (lastScrobbledTrack.current === trackKey) lastScrobbledTrack.current = '';
+    if (lastPolledTrack.current === trackKey) lastPolledTrack.current = '';
+  }, []);
+
   const handleNewTrack = useCallback(async (artist, title) => {
     /**
      * Scrobbles a new track to Last.fm.
      * Guards against duplicate scrobbles of the same track.
      */
-    if (`${artist}-${title}` === lastScrobbledTrack.current) return;
-    lastScrobbledTrack.current = `${artist}-${title}`;
+    const trackKey = `${artist}-${title}`;
+    if (trackKey === lastScrobbledTrack.current) return;
+    lastScrobbledTrack.current = trackKey;
+    // Stamp this attempt and record it as the current owner of the markers so a
+    // later, out-of-order failure only rolls back if nothing newer has run.
+    const attempt = ++scrobbleAttemptId.current;
+    lastScrobbleAttempt.current = attempt;
 
     try {
       const response = await authFetch(`${backendUrl}/scrobble-song`, {
@@ -161,18 +181,23 @@ function MainApp() {
         flashOrbitState('success', 450);
       } else {
         console.error('Failed to scrobble song');
+        allowScrobbleRetry(trackKey, attempt);
         flashOrbitState('error', 700);
       }
     } catch (error) {
       console.error('Error scrobbling to Last.fm:', error);
+      allowScrobbleRetry(trackKey, attempt);
       flashOrbitState('error', 700);
     }
-  }, [authFetch, backendUrl, flashOrbitState]);
+  }, [authFetch, backendUrl, flashOrbitState, allowScrobbleRetry]);
 
   useEffect(() => {
     return () => {
       if (orbitStateTimeoutRef.current) {
         clearTimeout(orbitStateTimeoutRef.current);
+      }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
       }
     };
   }, []);
@@ -234,6 +259,16 @@ function MainApp() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
+      // Queue the next cycle, re-checking continuous mode when the timer
+      // fires (not just when it is queued) so a Stop or toggle-off during the
+      // delay cancels the restart instead of re-opening the mic.
+      const scheduleRetry = () => {
+        retryTimeoutRef.current = setTimeout(() => {
+          retryTimeoutRef.current = null;
+          if (continuousListeningRef.current) startRecording();
+        }, 500);
+      };
+
       const startRecording = () => {
         const mediaRecorder = new MediaRecorder(streamRef.current);
         mediaRecorderRef.current = mediaRecorder;
@@ -255,7 +290,7 @@ function MainApp() {
             if (response.status === 204) {
               console.warn('No result detected. Retrying…');
               flashOrbitState('error', 700);
-              if (continuousListening) setTimeout(startRecording, 500);
+              if (continuousListeningRef.current) scheduleRetry();
               else stopStream();
               return;
             }
@@ -267,12 +302,16 @@ function MainApp() {
             addToHistory(songData.artist, songData.title);
             fetchAlbumArt(songData.artist, songData.title);
 
-            if (continuousListening) setTimeout(startRecording, 500);
+            if (continuousListeningRef.current) scheduleRetry();
             else stopStream();
 
           } catch (error) {
             console.error('Error detecting song:', error);
             flashOrbitState('error', 700);
+            // Don't leave the mic open on error: retry in continuous mode,
+            // otherwise release the stream and reset the listening state.
+            if (continuousListeningRef.current) scheduleRetry();
+            else stopStream();
           }
         };
 
@@ -291,8 +330,16 @@ function MainApp() {
   };
 
   const handleStopListening = () => {
+    // Update the ref synchronously so an in-flight detection cycle sees the
+    // stop immediately and won't re-open the mic via setTimeout(startRecording).
+    continuousListeningRef.current = false;
     setContinuousListening(false);
     setIsListening(false);
+    // Cancel a retry queued during the current cycle's detection delay.
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }

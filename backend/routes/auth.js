@@ -8,17 +8,22 @@
 const express = require('express');
 const axios = require('axios');
 const crypto = require('node:crypto');
-const fs = require('node:fs');
-const path = require('node:path');
 const router = express.Router();
 const { upsertUser, getUser, setLastFmSessionKey, setPreferences, safeUser } = require('../userStore');
+const { tokensMatch } = require('../csrf');
 require('dotenv').config();
 
 const LAST_API_KEY = process.env.LAST_API_KEY;
-const LAST_SHARED_SECRET = process.env.LAST_SHARED_SECRET;
+const LAST_SHARED_SECRET = process.env.LAST_SHARED_SECRET?.trim();
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Warn once at startup (not per request) when audience verification is disabled.
+if (!GOOGLE_CLIENT_ID) {
+    console.warn('⚠️  GOOGLE_CLIENT_ID is not set — Google ID token audience verification is disabled. Set it to harden Google SSO.');
+}
 
 // ─── Google SSO ───────────────────────────────────────────────────────────────
 
@@ -34,6 +39,13 @@ router.post('/google', async (req, res) => {
         return res.status(400).json({ error: 'Missing Google credential' });
     }
 
+    // Guard against non-string or oversized payloads before hitting Google.
+    // Valid Google ID tokens are compact JWTs (three dot-separated segments,
+    // well under 4KB); anything else is rejected without a network round-trip.
+    if (typeof credential !== 'string' || Buffer.byteLength(credential, 'utf8') > 4096) {
+        return res.status(400).json({ error: 'Invalid Google credential' });
+    }
+
     try {
         // Verify the Google ID token via Google's tokeninfo endpoint
         const googleRes = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
@@ -41,17 +53,37 @@ router.post('/google', async (req, res) => {
             timeout: 10000,
         });
 
-        const { sub, email, name, picture } = googleRes.data;
+        const { aud, sub, email, name, picture } = googleRes.data;
 
         if (!sub) {
             return res.status(401).json({ error: 'Invalid Google token' });
         }
 
-        const user = upsertUser(sub, { email, name, picture });
-        req.session.userId = sub;
+        // Google's tokeninfo endpoint validates the token's signature and expiry,
+        // but not that it was issued for *this* app. Reject any token whose `aud`
+        // does not match our own client ID (audience confusion / token substitution).
+        // When GOOGLE_CLIENT_ID is unset, verification is skipped — see the startup
+        // warning above.
+        if (GOOGLE_CLIENT_ID && aud !== GOOGLE_CLIENT_ID) {
+            console.warn('⚠️  Rejected Google sign-in: token audience did not match GOOGLE_CLIENT_ID.');
+            return res.status(401).json({ error: 'Invalid Google token' });
+        }
 
-        console.log(`✅ Google sign-in successful for user ${sub}`);
-        res.json({ user: safeUser(user) });
+        const user = upsertUser(sub, { email, name, picture });
+
+        // Issue a fresh session ID on sign-in so a session ID planted before
+        // login (session fixation) can't be used to ride the authenticated
+        // session. This also drops the pre-login CSRF token; the frontend
+        // fetches a new one on its next mutating request.
+        req.session.regenerate((err) => {
+            if (err) {
+                console.error('Session regenerate failed:', err.message);
+                return res.status(500).json({ error: 'Could not start session' });
+            }
+            req.session.userId = sub;
+            console.log(`✅ Google sign-in successful for user ${sub}`);
+            res.json({ user: safeUser(user) });
+        });
 
     } catch (error) {
         console.error('Google auth error:', error.response?.status || error.message);
@@ -107,7 +139,13 @@ router.get('/lastfm', (req, res) => {
         return res.redirect(`${FRONTEND_URL}/?error=not_authenticated`);
     }
 
-    const callbackUrl = `${BACKEND_URL}/auth/lastfm/callback`;
+    // Last.fm has no OAuth `state`, so carry our own one-time nonce through
+    // the callback URL. Without it, anyone could send a signed-in user to
+    // /auth/lastfm/callback?token=<attacker's token> and silently link the
+    // attacker's Last.fm account (login CSRF).
+    const state = crypto.randomBytes(16).toString('hex');
+    req.session.lastfmState = state;
+    const callbackUrl = `${BACKEND_URL}/auth/lastfm/callback?state=${state}`;
     const authUrl = `https://www.last.fm/api/auth/?api_key=${LAST_API_KEY}&cb=${encodeURIComponent(callbackUrl)}`;
     res.redirect(authUrl);
 });
@@ -118,15 +156,23 @@ router.get('/lastfm', (req, res) => {
  * and stores it on the user's account.
  */
 router.get('/lastfm/callback', async (req, res) => {
-    const { token } = req.query;
+    const { token, state } = req.query;
 
-    if (!token) {
+    if (!token || typeof token !== 'string') {
         return res.redirect(`${FRONTEND_URL}/?error=lastfm_missing_token`);
     }
 
     if (!req.session.userId) {
         return res.redirect(`${FRONTEND_URL}/?error=not_authenticated`);
     }
+
+    const expectedState = req.session.lastfmState;
+    if (!expectedState || !tokensMatch(expectedState, state)) {
+        console.warn('⚠️  Rejected Last.fm callback: state mismatch.');
+        return res.redirect(`${FRONTEND_URL}/?error=lastfm_auth_failed`);
+    }
+    delete req.session.lastfmState; // one-time use, consumed only on a valid match
+
 
     const params = {
         api_key: LAST_API_KEY,
@@ -146,6 +192,7 @@ router.get('/lastfm/callback', async (req, res) => {
         const response = await axios.get('https://ws.audioscrobbler.com/2.0/', {
             params: { ...params, api_sig, format: 'json' },
             family: 4,
+            timeout: 10000,
         });
 
         const sessionKey = response.data?.session?.key;
@@ -166,7 +213,6 @@ router.get('/lastfm/callback', async (req, res) => {
 });
 
 // ─── Personalization ──────────────────────────────────────────────────────────
-
 const VALID_THEMES = ['midnight', 'crimson', 'ocean', 'forest', 'sunset', 'aurora'];
 const VALID_FONTS  = ['segoe', 'inter', 'mono', 'georgia', 'playfair'];
 
